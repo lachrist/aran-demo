@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <title>Aran</title>
+      <style>
+      #main {
+        width: 500px;
+        margin: auto;
+      }
+      .code {
+        font-family: "Lucida Console", Monaco, monospace;
+      }
+      .error {
+        color: red;
+      }
+      button {
+        margin-bottom: 30px;
+      }
+    </style>
+    <script src="bundle.js"></script>
+    <script>
+      window.onload = function () {
+        document.getElementById("options").value  = "var sandbox = window;\n"
+        document.getElementById("options").value += "var traps = {};\n"
+        document.getElementById("options").value += "var hooks = {};"
+        document.getElementById("init").onclick = function () {
+          try { eval(document.getElementById("options").value) }
+          catch (e) { alert("Error in the options: "+e); throw e }
+          if (typeof sandbox === "undefined") { return alert("Sandbox is not defined.") }
+          if (typeof hooks === "undefined") { return alert("Hooks are not defined.") }
+          if (typeof traps === "undefined") { return alert("Traps are not defined.") }
+          try { var run = window.Aran(sandbox, hooks, traps) }
+          catch (e) { alert("Internal error: "+e); throw e }
+          document.getElementById("run").disabled = false
+          document.getElementById("run").onclick = function () {
+            var o = run(document.getElementById("target-code").value)
+            document.getElementById("compiled-code").value = o.compiled
+            document.getElementById("result").value = o.result
+            document.getElementById("error").value = o.error
+          }
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <div id="main">
+      <h1>Aran Demonstration</h1>
+      <!-- Options -->
+      <label>Options:</label>
+      <br/>
+      <textarea id="options" class="code" cols="70" rows="10" ></textarea><br/>
+      <button id="init">Initialize</button><br/>
+      <!-- Target code -->
+      <label>Target code:</label>
+      <br/>
+      <textarea id="target-code" class="code" cols="70" rows="10"></textarea><br/>
+      <button id="run" disabled>Run/Analyze</button><br/>
+      <!-- Compiled code -->
+      <label>Compiled code:</label>
+      <br/>
+      <p id="compiled-code" class="code"></p>
+      <!-- Result -->
+      <label>Result:</label>
+      <span id="result" class="code"></span>
+      <br/>
+      <!-- Error -->
+      <label>Error:</label>
+      <span id="error" class="code"></span>
+      <br/>
+    </div>
+  </body>
+</html>
