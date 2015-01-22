@@ -21,23 +21,45 @@
     <script src="bundle.js"></script>
     <script>
       window.onload = function () {
-        document.getElementById("options").value  = "var sandbox = window;\n"
-        document.getElementById("options").value += "var traps = {};\n"
-        document.getElementById("options").value += "var hooks = {};"
-        document.getElementById("init").onclick = function () {
-          try { eval(document.getElementById("options").value) }
-          catch (e) { alert("Error in the options: "+e); throw e }
+        // Fetch elements
+        var select = document.getElementById("select")
+        var master = document.getElementById("master")
+        var init = document.getElementById("init")
+        var target = document.getElementById("target")
+        var run = document.getElementById("run")
+        var compiled = document.getElementById("compiled")
+        var result_label = document.getElementById("result-label")
+        var result = document.getElementById("result")
+        var error_label = document.getElementById("error-label")
+        var error = document.getElementById("error")
+        // Master-select
+        for (var name in window.masters) {
+          var option = document.createElement("option")
+          option.textContent = name
+          option.value = name
+          select.appendChild(option)
+        }
+        select.onchange = function () { master.value = window.masters[select.value] }
+        select.value = "Empty"
+        master.value = window.masters.Empty
+        // Initialize
+        init.onclick = function () {
+          try { eval(master.value) }
+          catch (e) { alert("Error in master: "+e); throw e }
           if (typeof sandbox === "undefined") { return alert("Sandbox is not defined.") }
           if (typeof hooks === "undefined") { return alert("Hooks are not defined.") }
           if (typeof traps === "undefined") { return alert("Traps are not defined.") }
-          try { var run = window.Aran(sandbox, hooks, traps) }
+          try { var analyze = window.Aran(sandbox, hooks, traps) }
           catch (e) { alert("Internal error: "+e); throw e }
-          document.getElementById("run").disabled = false
-          document.getElementById("run").onclick = function () {
-            var o = run(document.getElementById("target-code").value)
-            document.getElementById("compiled-code").value = o.compiled
-            document.getElementById("result").value = o.result
-            document.getElementById("error").value = o.error
+          run.disabled = false
+          run.onclick = function () {
+            var o = analyze(target.value)
+            compiled.textContent = o.compiled
+            result_label.style.visibility = ("result" in o) ? "visible" : "hidden"
+            error_label.style.visibility = ("error" in o) ? "visible" : "hidden"
+            result.textContent = o.result
+            error.textContent = o.error
+            if (o.error) { console.dir(o.error) }
           }
         }
       }
@@ -45,28 +67,31 @@
   </head>
   <body>
     <div id="main">
-      <h1>Aran Demonstration</h1>
-      <!-- Options -->
-      <label>Options:</label>
+      <h1>Aran in action</h1>
+      <!-- Master -->
+      <label>Master:</label>
+      <select id="select"></select>
       <br/>
-      <textarea id="options" class="code" cols="70" rows="10" ></textarea><br/>
+      <textarea id="master" class="code" cols="70" rows="10" ></textarea><br/>
       <button id="init">Initialize</button><br/>
-      <!-- Target code -->
-      <label>Target code:</label>
+      <!-- Target -->
+      <label>Target:</label>
       <br/>
-      <textarea id="target-code" class="code" cols="70" rows="10"></textarea><br/>
+      <textarea id="target" class="code" cols="70" rows="10"></textarea><br/>
       <button id="run" disabled>Run/Analyze</button><br/>
-      <!-- Compiled code -->
-      <label>Compiled code:</label>
+      <!-- Compiled -->
+      <label>Compiled:</label>
       <br/>
-      <p id="compiled-code" class="code"></p>
+      <p id="compiled" class="code"></p>
       <!-- Result -->
-      <label>Result:</label>
-      <span id="result" class="code"></span>
+      <label id="result-label" style="visibility:hidden">Result:
+        <span id="result" class="code"></span>
+      </label>
       <br/>
       <!-- Error -->
-      <label>Error:</label>
-      <span id="error" class="code"></span>
+      <label id="error-label" style="visibility:hidden">Error:
+        <span id="error" class="code"></span>
+      </label>
       <br/>
     </div>
   </body>

@@ -1,2 +1,2 @@
 # aran-demo
-Demonstration of Aran
+Demonstration of Aran (https://github.com/lachrist/aran)
