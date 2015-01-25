@@ -56,6 +56,7 @@
     </style>
     <script src="bundle.js"></script>
     <script>
+      if (!window.Proxy) { alert("Proxies (http://soft.vub.ac.be/~tvcutsem/proxies/) are required for aran to work...") }
       window.onload = function () {
         // Fetch elements
         var select = document.getElementById("select")
