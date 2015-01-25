@@ -1,11 +1,12 @@
 window.masters = {};
-window.masters.Empty = "var sandbox = window;\nvar hooks = {};\nvar traps = {};";
 window.masters.Logger = "var sandbox = window;\n\nfunction log (msg) { console.log(msg) }\n\nvar hooks = new Proxy({}, {\n  has: function () { return true },\n  get: function (_, type) {\n    return function () {\n      var msg = 'hooks.'+type;\n      for (var i=0; i<arguments.length; i++) { msg = msg+' '+arguments[i] }\n      log(msg)\n    }\n  }\n})\n\nfunction logtrap (name) {\n  var msg = 'traps.'+name\n  for (var i=1; i<arguments.length; i++) { msg = msg+' '+arguments[i] }\n  log(msg)\n}\n\nvar traps = {\n  wrap: function (x) { logtrap('wrap', x); return x; },\n  booleanize: function (x) { logtrap('booleanize', x); return x; },\n  stringify: function (x) { logtrap('stringify', x); return x; },\n  unary: function (op, x) { logtrap('unary', op, x); return eval(op+' x'); },\n  binary: function (op, x1, x2) { logtrap('binary', op, x1, x2); return eval('x1 '+op+' x2'); },\n  apply: function (f, o, xs) { logtrap('apply', f, o, xs); return f.apply(o, xs); },\n  new: function (f, xs) {\n    logtrap('new', f, xs);\n    var o = Object.create(f.prototype);\n    var x = f.apply(o, xs);\n    if (typeof x === 'object' && x !== null) { return x }\n    return o;\n  },\n  get: function (o, p) { logtrap('get', o, p); return o[p]; },\n  set: function (o, p, v) { logtrap('set', o, p, v); return o[p]=v; },\n  delete: function (o, p) { logtrap('delete', o, p); return delete o[p]; },\n  enumerate: function (o) {\n    logtrap('enumerate', o);\n    var ps = [];\n    for (p in o) { ps.push(p) }\n    return ps;\n  }\n};\n";
+window.masters.Empty = "var sandbox = window;\nvar hooks = {};\nvar traps = {};";
 (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
 
 window.Aran = require('Aran')
 
 },{"Aran":2}],2:[function(require,module,exports){
+(function (global){
 
 var Escodegen = require("escodegen")
 var Esprima = require("esprima")
@@ -16,23 +17,26 @@ var Proxy = require("./proxy.js")
 
 module.exports = function (sandbox, hooks, traps) {
 
-  var aran = {sandbox:sandbox, hooks:hooks, traps:traps, global:this, undefined:undefined}
+  var aran = {sandbox:sandbox, hooks:hooks, traps:traps, undefined:undefined}
+  if (typeof window !== "undefined") { aran.global = window }
+  else if (typeof global !== "undefined") { aran.global = global }
+  else { throw new Error("Could not find the global object") }
 
   Stack(aran)
   Compile(aran)
   Proxy(aran)
 
   return function (code) {
-    var o = {compiled:aran.compile(code)}
-    aran.compiled = o.compiled
+    aran.compiled = aran.compile(code)
+    if (aran.global.compiled !== undefined) { aran.global.compiled = aran.compiled }
     aran.mark()
-    try { o.result = eval("with (aran.proxy) { "+aran.compiled+" }") } catch (e) { o.error = e }
-    aran.unmark()
-    return o
+    try { var result = eval("with (aran.proxy) { "+aran.compiled+" }") } finally { aran.unmark() }
+    return result
   }
 
 }
 
+}).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
 },{"./compile.js":3,"./proxy.js":29,"./stack.js":33,"escodegen":5,"esprima":22}],3:[function(require,module,exports){
 
 var Esprima = require("esprima")
@@ -51,10 +55,15 @@ module.exports = function (aran) {
 
   aran.compile = function (code) {
     var ast = Esprima.parse(code)
-    ast.body.forEach(visit_stmt)
-    if (aran.hooks.program) { ast.body.unshift(Ptah.exprstmt(phook("Program", [Ptah.literal(ast.body.length)]))) }
+    var hook = phook("Program", [Ptah.literal(ast.body.length)])
+    Util.prepend(Util.flaten(ast.body.map(visit_stmt)), ast.body)
+    if (aran.hooks.program) { ast.body.unshift(Ptah.exprstmt(hook)) }
     var errors = Esvalid.errors(ast)
-    if (errors.length > 0) { throw errors[0] }
+    if (errors.length > 0) {
+      errors[0].message = "Aran internal compilation error "+errors[0].message
+      console.dir(ast)
+      throw errors[0]
+    }
     return Escodegen.generate(ast)
   }
 
@@ -94,48 +103,41 @@ module.exports = function (aran) {
   // Visitors //
   //////////////
 
-  var visit_stmt
-  var visit_expr
-  (function () {
-    visit_stmt = function (node) { return visit(node, true) }
-    visit_expr = function (node) { return visit(node, false) }
-    function visit (node, is_stmt) {
-      var parts = Miley[node.type](node)
-      // Hooks //
-      if (aran.hooks[node.type]) {
-        var copy = Util.extract(node)
-        var hook = phook(copy.type, parts.infos.map(Ptah.nodify))
-        if (is_stmt) {
-          node.type = "BlockStatement"
-          node.body = [Ptah.exprstmt(hook), copy]
-        } else {
-          node.type = "SequenceExpression"
-          node.expressions = [hook, copy]
-        }
-        node = copy
-      }
-      // Declarations //
-      if (node.type === "FunctionExpression") { var body = node.body }
-      if (node.type === "FunctionDeclaration") {
-        var body = node.body
-        var decl = node
-        node = Util.extract(node)
-        decl.type = "EmptyStatement"
-      }
-      // Traps //
-      if (is_stmt) { stmts[node.type](node) }
-      else { Util.inject(exprs[node.type](Util.extract(node)), node) }
-      // Recursion //
-      parts.exprs.forEach(visit_expr)
-      var decls = Util.flaten(parts.stmts.map(visit_stmt))
-      if (body) {
-        Util.prepend(decls, body)
-        if (decl) { return [node] }
-        return []
-      }
-      return decls
+  function visit_expr (node) {
+    var parts = Miley[node.type](node)
+    if (aran.hooks[node.type]) {
+      var copy = Util.extract(node)
+      node.type = "SequenceExpression"
+      node.expressions = [phook(copy.type, parts.infos.map(Ptah.nodify)), copy]
+      node = copy
     }
-  } ())
+    var body = (node.type === "FunctionDeclaration") ? node.body : null
+    Util.inject(exprs[node.type](Util.extract(node)), node)
+    parts.exprs.forEach(visit_expr)
+    var decls = parts.stmts.forEach(visit_stmt)
+    if (!body) { return decls }
+    Util.prepend(decls, node.body)
+    return []
+  }
+
+  function visit_stmt (node) {
+    var parts = Miley[node.type](node)
+    if (aran.hooks[node.type]) {
+      var copy = Util.extract(node)
+      node.type = "BlockStatement"
+      node.body = [Ptah.exprstmt(phook(copy.type, parts.infos.map(Ptah.nodify))), copy]
+      node = copy
+    }
+    var body = (node.type === "FunctionDeclaration") ? node.body : null
+    stmts[node.type](node)
+    parts.exprs.forEach(visit_expr)
+    var decls = Util.flaten(parts.stmts.map(visit_stmt))
+    if (!body) { return decls }
+    Util.prepend(decls, node.body)
+    copy = Util.extract(node)
+    node.type = "EmptyStatement"
+    return [copy]
+  }
 
   /////////////////////////
   // Statement Compilers //
@@ -291,8 +293,9 @@ module.exports = function (aran) {
   // function ID (ID1,ID2) {} >>> var #ID = aran.traps.wrap(function (#ID1, #ID2) {})
   // etc...
   stmts.FunctionDeclaration = function (node) {
+    node.type = "FunctionExpression"
     node.params.forEach(escape_id)
-    Util.inject(Ptah.declaration(escape(node.id.name), ptrap.wrap(extract(node))), node)
+    Util.inject(Ptah.declaration(escape(node.id.name), ptrap.wrap(Util.extract(node))), node)
   }
 
   // var ID1=EXPR1, ID2=EXPR2 >>> var #ID1=EXPR1, #ID2=EXPR2
@@ -376,12 +379,12 @@ module.exports = function (aran) {
   //   aran.traps.set(
   //     aran.push1(EXPR1),
   //     aran.push2(EXPR2),
-  //     aran.push3(aran.traps.binary("+", aran.push3(aran.traps.get(aran.pop1(), aran.pop2())), aran.traps.wrap(1))),
+  //     aran.traps.binary("+", aran.push3(aran.traps.get(aran.pop1(), aran.pop2())), aran.traps.wrap(1))),
   //   aran.pop3()
   // )
   // etc...
   exprs.UpdateExpression = function (node) {
-    var op = node.operator
+    var op = node.operator.substring(1)
     if (node.argument.type === "Identifier") {
       function id () { return Ptah.identifier(escape(node.argument.name)) }
       if (node.prefix) { return Ptah.assignment(id(), ptrap.binary(op, id(), ptrap.wrap(Ptah.literal(1)))) }
@@ -389,9 +392,20 @@ module.exports = function (aran) {
     }
     if (!node.argument.type === "MemberExpression") { throw new Error (node) }
     compute_member(node.argument)
-    var val = ptrap.binary(op, ptrap.get(Pstack.pop1(), Pstack.pop2()), ptrap.wrap(Ptah.literal(1)))
-    if (node.prefix) { return ptrap.set(Pstack.push1(node.argument.object), Pstack.push2(node.argument.property), val) }
-    return Ptah.sequence([ptrap.set(Pstack.push1(node.argument.object), Pstack.push2(node.argument.property), Pstack.push3(val)), Pstack.pop3()])
+    if (node.prefix) {
+      return ptrap.set(
+        Pstack.push1(node.argument.object),
+        Pstack.push2(node.argument.property),
+        ptrap.binary(op, ptrap.get(Pstack.pop1(), Pstack.pop2()), ptrap.wrap(Ptah.literal(1)))
+      )
+    }
+    return Ptah.sequence([
+      ptrap.set(
+        Pstack.push1(node.argument.object),
+        Pstack.push2(node.argument.property),
+        ptrap.binary(op, Pstack.push3(ptrap.get(Pstack.pop1(), Pstack.pop2())), ptrap.wrap(Ptah.literal(1)))),
+      Pstack.pop3()
+    ])
   }
 
   // EXPR1 || EXPR2 >>> (aran.traps.booleanize(aran.push(EXPR1)) ? aran.pop() : (aran.pop(),EXPR2))
@@ -431,6 +445,7 @@ module.exports = function (aran) {
       // else { var alt = call(member(unwrap(identifier("$eval")), "apply"), [identifier("window"), pop()]) }
       // return sequence([push(array(node.arguments)), conditional(test, cons, alt)])
     }
+    if (!aran.traps.apply) { return node }
     if (node.callee.type !== "MemberExpression") { return ptrap.apply(node.callee, pshadow("undefined"), node.arguments) }
     compute_member(node.callee)
     return ptrap.apply(ptrap.get(Pstack.push(node.callee.object), node.callee.property), Pstack.pop(), node.arguments)
@@ -439,7 +454,7 @@ module.exports = function (aran) {
   // EXPR.ID      >>> aran.traps.get(EXPR, "ID")
   // EXPR1[EXPR2] >>> aran.traps.get(EXPR1, EXPR2)
   exprs.MemberExpression = function (node) {
-    compute_member
+    compute_member(node)
     return ptrap.get(node.object, node.property)
   }
 
@@ -12155,7 +12170,7 @@ module.exports = function (aran) {
   var booleanize = aran.traps.booleanize || Util.identity
 
   var has = function (o, k) { return unescape(k) in o }
-  if (aran.traps.binary) { has = function (o, k) { return booleanize(aran.traps.binary("in", k, o)) } }
+  if (aran.traps.binary) { has = function (o, k) { return booleanize(aran.traps.binary("in", unescape(k), o)) } }
 
   var get = function (o, k) { return o[unescape(k)] }
   if (aran.traps.get) { get = function (o, k) { return aran.traps.get(o, wrap(unescape(k))) } }
@@ -12189,12 +12204,12 @@ module.exports = function (aran) {
 
 var Ptah = require("./ptah.js")
 
-function shadow (names, args) { return Ptah.call(Ptah.member(Ptah.identifier("aran"), name), args) }
+function shadow (name, args) { return Ptah.call(Ptah.member(Ptah.identifier("aran"), name), args) }
 
 exports.mark = function () { return shadow("mark", []) }
 exports.unmark = function () { return shadow("unmark", []) }
 
-exports.push = function (x) { return shadow("push" [x]) }
+exports.push = function (x) { return shadow("push", [x]) }
 exports.push1 = function (x) { return shadow("push1", [x]) }
 exports.push2 = function (x) { return shadow("push2", [x]) }
 exports.push3 = function (x) { return shadow("push3", [x]) }
@@ -12336,6 +12351,14 @@ exports.try = function (try_stmts, catch_clause, finally_stmts) {
     guardedHandlers: [],
     handlers: catch_clause?[catch_clause]:[],
     finalizer: finally_stmts?block(finally_stmts):null
+  }
+}
+
+exports.unary = function (operator, argument) {
+  return {
+    type: "UnaryExpression",
+    operator: operator,
+    argument: argument
   }
 }
 
@@ -12489,20 +12512,20 @@ module.exports = function (aran) {
   var stack2 = []
   var stack3 = []
 
-  aran.push = function (x) { return stack.push(x) }
-  aran.push1 = function (x) { return stack1.push(x) }
-  aran.push2 = function (x) { return stack2.push(x) }
-  aran.push3 = function (x) { return stack3.push(x) }
+  aran.push = function (x) { return (stack.push(x), x) }
+  aran.push1 = function (x) { return (stack1.push(x), x) }
+  aran.push2 = function (x) { return (stack2.push(x), x) }
+  aran.push3 = function (x) { return (stack3.push(x), x) }
 
   aran.pop = function () { return stack.pop() }
   aran.pop1 = function () { return stack1.pop() }
-  aran.pop2 = function () { return stack1.pop() }
-  aran.pop3 = function () { return stack1.pop() }
+  aran.pop2 = function () { return stack2.pop() }
+  aran.pop3 = function () { return stack3.pop() }
 
   aran.get = function () { return stack[stack1.length] }
   aran.get1 = function () { return stack1[stack1.length] }
   aran.get2 = function () { return stack2[stack2.length] }
-  aran.get3 = function () { return stack2[stack2.length] }
+  aran.get3 = function () { return stack3[stack3.length] }
 
   aran.mark = function () {
     var mark = {}
