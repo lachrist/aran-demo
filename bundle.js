@@ -1,6 +1,6 @@
 window.masters = {};
+window.masters.Logger = "var sandbox = window;\n\nfunction log (msg) { console.log(msg) }\n\nvar hooks = new Proxy({}, {\n  has: function () { return true },\n  get: function (_, type) {\n    return function () {\n      var msg = 'hooks.'+type;\n      for (var i=0; i<arguments.length; i++) { msg = msg+' '+arguments[i] }\n      log(msg)\n    }\n  }\n})\n\nfunction logtrap (name) {\n  var msg = 'traps.'+name\n  for (var i=1; i<arguments.length; i++) { msg = msg+' '+arguments[i] }\n  log(msg)\n}\n\nvar traps = {\n  primitive: function (x) { logtrap('primitive', x); return x; },\n  object: function (x) { logtrap('object', x); return x; },\n  array: function (x) { logtrap('array', x); return x; },\n  function: function (x) { logtrap('function', x); return x; },\n  regexp: function (x) { logtrap('regexp', x); return x; },\n  booleanize: function (x) { logtrap('booleanize', x); return x; },\n  stringify: function (x) { logtrap('stringify', x); return x; },\n  throw: function (x) { logtrap('throw', x); return x; },\n  catch: function (x) { logtrap('catch', x); return x; },\n  unary: function (op, x) { logtrap('unary', op, x); return eval(op+' x'); },\n  binary: function (op, x1, x2) { logtrap('binary', op, x1, x2); return eval('x1 '+op+' x2'); },\n  apply: function (f, o, xs) { logtrap('apply', f, o, xs); return f.apply(o, xs); },\n  new: function (f, xs) {\n    logtrap('new', f, xs);\n    var o = Object.create(f.prototype);\n    var x = f.apply(o, xs);\n    if (typeof x === 'object' && x !== null) { return x }\n    return o;\n  },\n  get: function (o, p) { logtrap('get', o, p); return o[p]; },\n  set: function (o, p, v) { logtrap('set', o, p, v); return o[p]=v; },\n  delete: function (o, p) { logtrap('delete', o, p); return delete o[p]; },\n  erase: function (r, p) { logtrap('erase', r, p); return r; },\n  enumerate: function (o) {\n    logtrap('enumerate', o);\n    var ps = [];\n    for (p in o) { ps.push(p) }\n    return ps;\n  }\n};\n";
 window.masters.Empty = "var sandbox = window;\nvar hooks = {};\nvar traps = {};";
-window.masters.Logger = "var sandbox = window;\n\nfunction log (msg) { console.log(msg) }\n\nvar hooks = new Proxy({}, {\n  has: function () { return true },\n  get: function (_, type) {\n    return function () {\n      var msg = 'hooks.'+type;\n      for (var i=0; i<arguments.length; i++) { msg = msg+' '+arguments[i] }\n      log(msg)\n    }\n  }\n})\n\nfunction logtrap (name) {\n  var msg = 'traps.'+name\n  for (var i=1; i<arguments.length; i++) { msg = msg+' '+arguments[i] }\n  log(msg)\n}\n\nvar traps = {\n  wrap: function (x) { logtrap('wrap', x); return x; },\n  booleanize: function (x) { logtrap('booleanize', x); return x; },\n  stringify: function (x) { logtrap('stringify', x); return x; },\n  unary: function (op, x) { logtrap('unary', op, x); return eval(op+' x'); },\n  binary: function (op, x1, x2) { logtrap('binary', op, x1, x2); return eval('x1 '+op+' x2'); },\n  apply: function (f, o, xs) { logtrap('apply', f, o, xs); return f.apply(o, xs); },\n  new: function (f, xs) {\n    logtrap('new', f, xs);\n    var o = Object.create(f.prototype);\n    var x = f.apply(o, xs);\n    if (typeof x === 'object' && x !== null) { return x }\n    return o;\n  },\n  get: function (o, p) { logtrap('get', o, p); return o[p]; },\n  set: function (o, p, v) { logtrap('set', o, p, v); return o[p]=v; },\n  delete: function (o, p) { logtrap('delete', o, p); return delete o[p]; },\n  enumerate: function (o) {\n    logtrap('enumerate', o);\n    var ps = [];\n    for (p in o) { ps.push(p) }\n    return ps;\n  }\n};\n";
 (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
 
 window.Aran = require('Aran')
@@ -28,6 +28,7 @@ module.exports = function (sandbox, hooks, traps) {
 
   return function (code) {
     aran.compiled = aran.compile(code)
+    if (!aran.eval) { aran.eval = sandbox.eval }
     if (aran.global.compiled !== undefined) { aran.global.compiled = aran.compiled }
     aran.mark()
     try { var result = eval("with (aran.proxy) { "+aran.compiled+" }") } finally { aran.unmark() }
@@ -37,17 +38,19 @@ module.exports = function (sandbox, hooks, traps) {
 }
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./compile.js":3,"./proxy.js":29,"./stack.js":33,"escodegen":5,"esprima":22}],3:[function(require,module,exports){
+},{"./compile.js":3,"./proxy.js":30,"./stack.js":34,"escodegen":6,"esprima":23}],3:[function(require,module,exports){
 
 var Esprima = require("esprima")
 var Esvalid = require("esvalid")
 var Escodegen = require("escodegen")
 
 var Util = require("./util.js")
+var Error = require("./error.js")
 var Miley = require("./miley.js")
 var Ptah = require("./ptah.js")
 var Pstack = require("./pstack.js")
 var Ptrap = require("./ptrap.js")
+var Switch = require("./switch.js")
 
 module.exports = function (aran) {
 
@@ -59,11 +62,7 @@ module.exports = function (aran) {
     Util.prepend(Util.flaten(ast.body.map(visit_stmt)), ast.body)
     if (aran.hooks.program) { ast.body.unshift(Ptah.exprstmt(hook)) }
     var errors = Esvalid.errors(ast)
-    if (errors.length > 0) {
-      errors[0].message = "Aran internal compilation error "+errors[0].message
-      console.dir(ast)
-      throw errors[0]
-    }
+    if (errors.length > 0) { Error("Aran internal compilation error", errors.map(function (e) { return e.message }), errors) }
     return Escodegen.generate(ast)
   }
 
@@ -76,18 +75,16 @@ module.exports = function (aran) {
     return s
   }
 
-  function escape_id (id) {
-    id.name = escape(id.name)
-  }
+  var esc_args = escape("arguments")
 
-  function escape_decl (decl) {
+  function esc_decl (decl) {
     decl.id.name = escape(decl.id.name)
   }
 
   function compute_member (node) {
     if (!node.computed) {
       node.computed = true
-      node.property = ptrap.wrap(Ptah.literal(node.property.name))
+      node.property = ptrap.primitive(Ptah.literal(node.property.name))
     }
   }
 
@@ -99,43 +96,65 @@ module.exports = function (aran) {
     return Ptah.call(Ptah.member(pshadow("hooks"), name), args)
   }
 
+  function visit_fct (node) {
+    var args = false
+    node.params.forEach(function (id) {
+      if (id.name === "arguments") { args = true }
+      id.name = escape(id.name)
+    })
+    if (!args) {
+      node.body.body.unshift(Ptah.exprstmt(Ptah.assignment(Ptah.identifier(esc_args), ptrap.arguments(Ptah.identifier(esc_args)))))
+    }
+    return ptrap.function(node)
+  }
+
   //////////////
   // Visitors //
   //////////////
 
   function visit_expr (node) {
-    var parts = Miley[node.type](node)
+    console.log(node.type)
+    var pushed = Switch.push(node.type)
+    var parts = Miley(node)
     if (aran.hooks[node.type]) {
       var copy = Util.extract(node)
       node.type = "SequenceExpression"
       node.expressions = [phook(copy.type, parts.infos.map(Ptah.nodify)), copy]
       node = copy
     }
-    var body = (node.type === "FunctionDeclaration") ? node.body : null
-    Util.inject(exprs[node.type](Util.extract(node)), node)
+    var body = node.type === "FunctionExpression" ? node.body.body : null
+    if (!exprs[node.type]) { Error("Unsupported expression type", node) }
+    Util.inject(exprs[node.type](node), node)
     parts.exprs.forEach(visit_expr)
-    var decls = parts.stmts.forEach(visit_stmt)
-    if (!body) { return decls }
-    Util.prepend(decls, node.body)
-    return []
+    if (body) {
+      var decls = Util.flaten(parts.stmts.map(visit_stmt))
+      Util.prepend(decls, body)
+    } else if (parts.stmts.length > 0) {
+      Error("Expressions that are not FunctionExpression should not contain any statement", node)
+    }
+    if (pushed) { Switch.pop() }
   }
 
   function visit_stmt (node) {
-    var parts = Miley[node.type](node)
+    console.log(node.type)
+    var pushed = Switch.push(node.type)
+    var parts = Miley(node)
     if (aran.hooks[node.type]) {
       var copy = Util.extract(node)
       node.type = "BlockStatement"
       node.body = [Ptah.exprstmt(phook(copy.type, parts.infos.map(Ptah.nodify))), copy]
       node = copy
     }
-    var body = (node.type === "FunctionDeclaration") ? node.body : null
+    var body = node.type === "FunctionDeclaration" ? node.body.body : null
+    if (!stmts[node.type]) { Error("Unsupported statement type", node) }
     stmts[node.type](node)
     parts.exprs.forEach(visit_expr)
     var decls = Util.flaten(parts.stmts.map(visit_stmt))
     if (!body) { return decls }
-    Util.prepend(decls, node.body)
+    Util.prepend(decls, body)
     copy = Util.extract(node)
     node.type = "EmptyStatement"
+    if (pushed) { Switch.pop() }
     return [copy]
   }
 
@@ -151,68 +170,95 @@ module.exports = function (aran) {
 
   stmts.ExpressionStatement = Util.nil
 
-  // if (EXPR) STMT             >>> if (aran.traps.booleanize(EXPR)) STMT
-  // if (EXPR) STMT1 else STMT2 >>> if (aran.traps.booleanize(EXPR)) STMT1 else STMT2
+  // if (EXPR) STMT             >>> if (aran.traps.booleanize(EXPR, "if")) STMT
+  // if (EXPR) STMT1 else STMT2 >>> if (aran.traps.booleanize(EXPR, "if-else")) STMT1 else STMT2
   stmts.IfStatement = function (node) {
-    node.test = ptrap.booleanize(node.test)
+    node.test = ptrap.booleanize(node.test, node.alternate?"if-else":"if")
   }
 
-  stmts.LabeledStatement = Util.nil
+  stmts.LabeledStatement = function (node) {
+    node.label.name = "$"+node.label.name
+  }
 
-  stmts.BreakStatement = Util.nil
+  stmts.BreakStatement = function (node) {
+    if (node.label) { return Switch.escape(node.label) }
+    node.label = Switch.get()
+  }
 
-  stmts.ContinueStatement = Util.nil
+  stmts.ContinueStatement = function (node) {
+    if (node.label) { return Switch.escape(node.label) }
+  }
 
   // with (EXPR) STMT >>> with (aran.with(EXPR)) STMT
   stmts.WithStatement = function (node) {
     node.object = Ptah.call(pshadow("with"), [node.object])
   }
 
-  // TODO
-  // dificult to prevent label clash
-  // has to perform upfront parsing to find break
-  // switchlabel: { if (descriminant === CASE1) ... }
-  // stmts.SwitchStatement = function (node) {}
+  // switch (EXPR1) { case EXPR2: STMT1 break; default: STMT2 } >>> try {
+  //   switchX: {
+  //     aran.push(EXPR1);
+  //     if (aran.traps.binary("===", aran.get(), EXPR2) { STMT1 break switchX; }
+  //     STMT2
+  //   }
+  // } finally {
+  //   aran.pop()
+  // }
+  // etc...
+  stmts.SwitchStatement = function (node) {
+    var stmts = Util.flaten(node.cases.map(function (c) {
+      if (!c.test) { return c.consequent }
+      return [Ptah.if(ptrap.binary("===", Pstack.get(), c.test), Ptah.block(c.consequent))]
+    }))
+    stmts.unshift(Ptah.exprstmt(Pstack.push(node.discriminant)))
+    Util.inject(Ptah.try([Ptah.label(Switch.get(), Ptah.block(stmts))], null, null, [Ptah.exprstmt(Pstack.pop())]), node)
+  }
 
   stmts.ReturnStatement = Util.nil
 
-  stmts.ThrowStatement = Util.nil
+  // throw EXPR; >>> throw aran.traps.throw(EXPR);
+  stmts.ThrowStatement = function (node) {
+    node.argument = ptrap.throw(node.argument)
+  }
 
-  // try {} catch (ID) {} finally {} >>> try { aran.mark() } catch (#ID) {} finally { aran.ummark() }
+  // try {} catch (ID) {} finally {} >>> try { aran.mark() } catch (#ID) { #ID = aran.traps.catch(#ID) } finally { aran.ummark() }
+  // etc...
   stmts.TryStatement = function (node) {
     node.block.body.unshift(Ptah.exprstmt(Pstack.mark()))
-    if (node.handler) { node.handler.param.name = escape(node.handler.param.name) }
+    if (node.handler) {
+      var name = escape(node.handler.param.name)
+      node.handler.param.name = name
+      node.handler.body.body.unshift(Ptah.exprstmt(Ptah.assignment(Ptah.identifier(name), ptrap.catch(Ptah.identifier(name)))))
+    }
     if (!node.finalizer) { node.finalizer = Ptah.block([]) }
     node.finalizer.body.unshift(Ptah.exprstmt(Pstack.unmark()))
   }
 
-  // while (EXPR) STMT >>> while (aran.traps.booleanize(EXPR)) STMT
+  // while (EXPR) STMT >>> while (aran.traps.booleanize(EXPR, "while")) STMT
   stmts.WhileStatement = function (node) {
-    node.test = ptrap.booleanize(node.test)
+    node.test = ptrap.booleanize(node.test, "while")
   }
 
-  // do STMT while (EXPR) >>> do STMT while (aran.traps.booleanize(EXPR))
+  // do STMT while (EXPR) >>> do STMT while (aran.traps.booleanize(EXPR, "do-while"))
   stmts.DoWhileStatement = function (node) {
-    node.test = ptrap.booleanize(node.test)
+    node.test = ptrap.booleanize(node.test, "do-while")
   }
 
-  // for (EXPR1 ; EXPR2 ; EXPR3) STMT >>> for (EXPR1 ; aran.traps.booleanize(EXPR2) ; EXPR3) STMT
+  // for (EXPR1 ; EXPR2 ; EXPR3) STMT >>> for (EXPR1 ; aran.traps.booleanize(EXPR2, "for") ; EXPR3) STMT
   // for (var ID1,ID2; EXPR2; EXPR3) STMT >>> for (var #ID1,#ID2; EXPR2; EXPR3) STMT
   // etc...
   stmts.ForStatement = function (node) {
-    if (node.test) { node.test = ptrap.booleanize(node.test) }
+    if (node.test) { node.test = ptrap.booleanize(node.test, "for") }
     if (node.init && node.init.type === "VariableDeclaration") {
-      node.init.declarations.forEach(escape_decl)
+      node.init.declarations.forEach(esc_decl)
     }
   }
 
-  // TODO would like to remove enumerate
   // for (var ID=EXPR1 in EXPR2) STMT >>> {
-  //   var $ID=EXPR1;
+  //   var #ID=EXPR1;
   //   aran.push3(aran.traps.enumerate(EXPR2));
   //   try {
   //     for (aran.push(0); aran.get()<aran.get3().length; aran.push(aran.get()+1)) {
-  //       $ID = aran.get3()[aran.get()];
+  //       #ID = aran.get3()[aran.get()];
   //       STMT
   //     }
   //   } finally {
@@ -239,69 +285,54 @@ module.exports = function (aran) {
   // }
   //
   // etc...
-  // stmts.ForInStatement = function (node) {
-  //   if (node.left.type === "MemberExpression") {
-  //     compute_member(node.left)
-  //     var obj = node.left.object
-  //     var prop = node.left.property
-  //   } else if (node.left.type === "VariableDeclaration") {
-  //     var decl = node.left
-  //     var name = "$"+node.left.declarations[0].id.name
-  //     node.left.declarations[0].id.name=name
-  //   } else if (node.left.type === "Identifier") {
-  //     var name = "$"+node.left.name
-  //   } else { throw new Error(node) }
-  //   var copy = extract(node)
-  //   node.type = "BlockStatement"
-  //   node.body = []
-  //   // Pre-try
-  //   if (decl) { node.body.push(decl) }
-  //   else if (obj) {
-  //     node.body.push(azir.expr_stmt(push1(obj)))
-  //     node.body.push(azir.expr_stmt(push1(prop)))
-  //   }
-  //   if (aran.traps.enumerate) { var arg = azir.trap("enumerate", [copy.right]) }
-  //   else if (aran.traps.unwrap) { var arg = azir.shadow("enumerate", [azir.trap("unwrap", copy.right)]) }
-  //   else { var arg = azir.shadow("enumerate", [copy.right]) }
-  //   node.body.push(azir.expr_stmt(azir.push3(arg)))
-  //   // Try statements
-  //   var init = azir.shadow("push", [azir.literal(0)])
-  //   var test = azirt.binary("<", get(), azir.member(azir.get3(), "length"))
-  //   var update = azir.shadow("push", [azir.binary("+", azir.pop(), azir.literal(1))])
-  //   var elem = azir.member(azir.get3(), azir.get())
-  //   if (obj) {
-  //     if (aran.ptraps.set) {
-  //       var ass = azir.expr_stmt(azir.trap("set", [azir.get1, azir.get2, elem]))
-  //     } else {
-  //       var ass = azir.expr_stmt(azir.assignment(azir.member(azir.get1(), azir.get2), elem))
-  //     }
-  //   } else {
-  //     var ass = azir.expr_stmt(azir.assignment(azir.identifier(name), elem))
-  //   }
-  //   var body = azir.block([ass, copy.body])
-  //   // Finally statements
-  //   var finally_stmts = [azir.expr_stmt(azir.pop())]
-  //   if (obj) {
-  //     finally_stmts.push(azir.expr_stmt(azir.pop1()))
-  //     finally_stmts.push(azir.expr_stmt(azir.pop2()))
-  //   }
-  //   finally_stmts.push(azir.expr_stmt(azir.pop3()))
-  //   // Assemble
-  //   node.body.push(azir.try_stmt([azir.for_stmt(init, test, update, body)], null, finally_stmts))
-  // }
+  stmts.ForInStatement = function (node) {
+    if (!aran.traps.enumerate) { return node }
+    function for_stmt (expr) {
+      return Ptah.for(
+        Pstack.push(Ptah.literal(0)),
+        Ptah.binary("<", Pstack.get(), Ptah.member(Pstack.get3(), "length"))),
+        Pstack.push(Pstack.binary("+", Pstack.get(), Pstack.literal(1))),
+        Ptah.block([Ptah.exprstmt(expr), node.body])
+    }
+    if (node.left.type === "MemberExpression") {
+      compute_member(node.left)
+      var stmts = []
+      stmts.push(Pstack.push1(node.left.object))
+      stmts.push(Pstack.push2(node.left.property))
+      stmts.push(Pstack.push3(ptrap.enumerate(node.right)))
+      var set = ptrap.set(Pstack.get1(), Pstack.get2(), Ptah.member(Pstack.get3(), Pstack.get()))
+      var finally_stmts = [Pstack.pop(), Pstack.pop1(), Pstack.pop2(), Pstack.pop3()]
+      stmts.push(Ptah.try([for_stmt(set)], null, null, finally_stmts))
+      return Ptah.block(stmts)
+    }
+    var stmts = []
+    if (node.left.type === "VariableDeclaration") {
+      if (node.left.declarations.length !== 1) { Error("Not unique variable declaration in a for-in statement", node) }
+      var name = node.left.declarations[0].id.name
+      stmts.push(node.left)
+    } else if (node.left.type === "Identifier") {
+      var name = node.left.name
+    } else {
+      Error("Wrong left-hand side in for-in statement", node)
+    }
+    stmts.push(Pstack.push3(ptrap.enumerate(node.right)))
+    var ass = Ptah.assignment(Ptah.identifier(name), Ptah.member(Pstack.get3(), Pstack.get1()))
+    var finally_stmts = [Pstack.pop(), Pstack.pop3()]
+    stmts.push(Ptah.try([for_stmt(ass)], null, null, finally_stmts))
+    return Ptah.block(stmts)
+  }
 
-  // function ID (ID1,ID2) {} >>> var #ID = aran.traps.wrap(function (#ID1, #ID2) {})
+  // function ID (ID1,ID2) {} >>> var #ID = aran.traps.function(function (#ID1, #ID2) {})
   // etc...
   stmts.FunctionDeclaration = function (node) {
     node.type = "FunctionExpression"
-    node.params.forEach(escape_id)
-    Util.inject(Ptah.declaration(escape(node.id.name), ptrap.wrap(Util.extract(node))), node)
+    Util.inject(Ptah.declaration(escape(node.id.name), visit_fct(node)), node)
   }
 
   // var ID1=EXPR1, ID2=EXPR2 >>> var #ID1=EXPR1, #ID2=EXPR2
   // etc...
   stmts.VariableDeclaration = function (node) {
-    node.declarations.forEach(escape_decl)
+    node.declarations.forEach(esc_decl)
   }
 
   //////////////////////////
@@ -315,32 +346,39 @@ module.exports = function (aran) {
     return Ptah.conditional(Ptah.binary("===", node, pshadow("global")), pshadow("sandbox"), node)
   }
 
-  // [EXPR1,,EXPR2] >>> aran.traps.wrap([EXPR1,,EXPR2])
+  // [EXPR1,,EXPR2] >>> aran.traps.array([EXPR1,,EXPR2])
   // etc...
-  exprs.ArrayExpression = ptrap.wrap
+  exprs.ArrayExpression = ptrap.array
 
-  // {x:EXPR} >>> aran.traps.wrap({x:EXPR})
+  // {x:EXPR} >>> aran.traps.object({x:EXPR})
   // etc...
-  exprs.ObjectExpression = ptrap.wrap
+  exprs.ObjectExpression = ptrap.object
 
-  // function (ID) {} >>> aran.traps.wrap(function (#ID) {})
-  exprs.FunctionExpression = function (node) {
-    node.params.forEach(escape_id)
-    return ptrap.wrap(node)
-  }
+  // function (ID) {} >>> aran.traps.function(function (#ID) { arguments=aran.traps.arguments(arguments) })
+  exprs.FunctionExpression = visit_fct
 
-  exprs.sequence = Util.identity
+  exprs.SequenceExpression = Util.identity
   
   // void EXPR           >>> aran.traps.unary("void", EXPR)
   // delete EXPR1[EXPR2] >>> aran.traps.delete(EXPR1, EXPR2)
+  // delete ID           >>> aran.traps.erase("ID", delete ID)
+  // typeof ID           >>> aran.traps.unary("typeof", (function () { try { return #ID } catch (e) { return undefined } } ())
+  // typeof EXPR         >>> aran.traps.unary("typeof", EXPR)
   // etc...
   exprs.UnaryExpression = function (node) {
     if (node.operator === "delete" && node.argument.type === "MemberExpression") {
       compute_member(node.argument)
       return ptrap.delete(node.argument.object, node.argument.property)
     }
+    if (node.operator === "delete" && node.arguments.type === "Identifier") {
+      return ptrap.erase(node.argument.name, node)
+    }
+    if (node.operator === "typeof" && node.argument.type === "Identifier") {
+      var stmts1 = [Ptah.return(Ptah.identifier(escape(node.argument.name)))]
+      var stmts2 = [Ptah.return(pshadow("undefined"))]
+      return ptrap.unary("typeof", Ptah.call(Ptah.function([], [Ptah.try(stmts1, "e", stmts2)]), []))
+    }
     return ptrap.unary(node.operator, node.argument)
-    // TODO typeof ID && delete ID
   }
 
   // EXPR1 OP EXPR2 >>> aran.traps.binary("OP", EXPR1, EXPR2)
@@ -354,56 +392,59 @@ module.exports = function (aran) {
   // <EXPR1>[<EXPR2>] OP= <EXPR3> >>> aran.traps.set(aran.push1(EXPR1), aran.push2(EXPR2), aran.traps.binary("OP", aran.trap.get(aran.pop1(), aran.pop2()), EXPR3))
   exprs.AssignmentExpression = function (node) {
     if (node.left.type === "Identifier") {
-      escape_id(node.left)
+      node.left.name = escape(node.left.name)
       if (node.operator === "=") { return node }
     } else if (node.left.type === "MemberExpression") {
       compute_member(node.left)
       if (node.operator === "=") { return ptrap.set(node.left.object, node.left.property, node.right) }
-    } else { throw new Error(node) }
+    } else {
+      Error("Wrong left-hand side in assignment expression", node)
+    }
     var op = node.operator.replace("=", "")
     if (node.left.type === "Identifier") {
       node.operator = "="
       node.right = ptrap.binary(op, Ptah.identifier(node.left.name), node.right)
       return node
     }
-    return ptraps.set(Pstack.push1(node.left.object), Pstack.push2(node.left.property), ptrap.binary(op, ptrap.get(Pstack.pop1(), Pstack.pop2()), node.right))
+    return ptrap.set(Pstack.push1(node.left.object), Pstack.push2(node.left.property), ptrap.binary(op, ptrap.get(Pstack.pop1(), Pstack.pop2()), node.right))
   }
 
-  // ++ID           >>> $ID=aran.traps.binary("+", #ID, aran.traps.wrap(1))
-  // ID++           >>> (#ID = arent.traps.binary("+", aran.push(#ID), aran.traps.wrap(1), aran.pop())
+  // ++ID           >>> $ID=aran.traps.binary("+", #ID, aran.traps.primitive(1))
+  // ID++           >>> (#ID = arent.traps.binary("+", aran.push(#ID), aran.traps.primitive(1), aran.pop())
   // ++EXPR1[EXPR2] >>> aran.traps.set(
   //   aran.push1(EXPR1),
   //   aran.push2(EXPR2),
-  //   aran.traps.binary("+", aran.traps.get(aran.pop1(), aran.pop2()), aran.traps.wrap(1)))
+  //   aran.traps.binary("+", aran.traps.get(aran.pop1(), aran.pop2()), aran.traps.primitive(1)))
   // EXPR1[EXPR2]++ >>> (
   //   aran.traps.set(
   //     aran.push1(EXPR1),
   //     aran.push2(EXPR2),
-  //     aran.traps.binary("+", aran.push3(aran.traps.get(aran.pop1(), aran.pop2())), aran.traps.wrap(1))),
+  //     aran.traps.binary("+", aran.push3(aran.traps.get(aran.pop1(), aran.pop2())), aran.traps.primitive(1))),
   //   aran.pop3()
   // )
   // etc...
   exprs.UpdateExpression = function (node) {
     var op = node.operator.substring(1)
+    function one () { return ptrap.primitive(Ptah.literal(1)) }
     if (node.argument.type === "Identifier") {
       function id () { return Ptah.identifier(escape(node.argument.name)) }
-      if (node.prefix) { return Ptah.assignment(id(), ptrap.binary(op, id(), ptrap.wrap(Ptah.literal(1)))) }
-      return Ptah.sequence([Ptah.assignment(id(), ptrap.binary(op, Pstack.push(id()), ptrap.wrap(Ptah.literal(1)))), Pstack.pop()])
+      if (node.prefix) { return Ptah.assignment(id(), ptrap.binary(op, id(), one())) }
+      return Ptah.sequence([Ptah.assignment(id(), ptrap.binary(op, Pstack.push(id()), one())), Pstack.pop()])
     }
-    if (!node.argument.type === "MemberExpression") { throw new Error (node) }
+    if (!node.argument.type === "MemberExpression") { Error("Wrong left-hand side in update expression", node) }
     compute_member(node.argument)
     if (node.prefix) {
       return ptrap.set(
         Pstack.push1(node.argument.object),
         Pstack.push2(node.argument.property),
-        ptrap.binary(op, ptrap.get(Pstack.pop1(), Pstack.pop2()), ptrap.wrap(Ptah.literal(1)))
+        ptrap.binary(op, ptrap.get(Pstack.pop1(), Pstack.pop2()), one())
       )
     }
     return Ptah.sequence([
       ptrap.set(
         Pstack.push1(node.argument.object),
         Pstack.push2(node.argument.property),
-        ptrap.binary(op, Pstack.push3(ptrap.get(Pstack.pop1(), Pstack.pop2())), ptrap.wrap(Ptah.literal(1)))),
+        ptrap.binary(op, Pstack.push3(ptrap.get(Pstack.pop1(), Pstack.pop2())), one())),
       Pstack.pop3()
     ])
   }
@@ -411,16 +452,16 @@ module.exports = function (aran) {
   // EXPR1 || EXPR2 >>> (aran.traps.booleanize(aran.push(EXPR1)) ? aran.pop() : (aran.pop(),EXPR2))
   // EXPR1 && EXPR2 >>> (aran.traps.booleanize(aran.push(EXPR1)) ? (aran.pop(),EXPR2) : aran.pop())
   exprs.LogicalExpression = function (node) {
-    var test = ptrap.booleanize(Pstack.push(node.left))
+    var test = ptrap.booleanize(Pstack.push(node.left), node.operator)
     var seq = Ptah.sequence([Pstack.pop(), node.right])
     if (node.operator === "||") { return Ptah.conditional(test, Pstack.pop(), seq) }
     if (node.operator === "&&") { return Ptah.conditional(test, seq, Pstack.pop()) }
-    throw new Error(node)
+    Error("Invalid logical operator", node)
   }
 
   // EXPR1 ? EXPR2 : EXPR3 >>> aran.traps.booleanize(EXPR1) ? EXPR2 : EXPR3
   exprs.ConditionalExpression = function (node) {
-    node.test = ptrap.booleanize(node.test)
+    node.test = ptrap.booleanize(node.test, '?:')
     return node
   }
 
@@ -432,18 +473,23 @@ module.exports = function (aran) {
 
   // EXPR(EXPR1, EXPR2) >>> aran.traps.apply(EXPR, aran.undefined, [EXPR1, EXPR2])
   // EXPR1[EXPR2](EXPR3, EXPR4) >>> aran.traps.apply(aran.traps.get(aran.push(EXPR1), EXPR2), aran.pop(), [EXPR1, EXPR2])
-  // eval(EXPR1, EXPR2) >>> (aran.push([EXPR1, EXPR2]), (eval===aran.seval) ? eval(aran.compile(aran.unwrap(aran.pop()[0]))) : aran.traps.call($eval, aran.pop()))
+  // eval(EXPR1, EXPR2) >>> (aran.push(eval)===aran.eval)
+  //   ? (aran.pop(), eval(aran.compile(aran.stringify(EXPR1, EXPR2))))
+  //   : aran.traps.apply(aran.pop(), aran.undefined, [EXPR1, EXPR2])
   // etc...
   exprs.CallExpression = function (node) {
     if (node.callee.type === "Identifier" && node.callee.name === "eval") {
-      // TODO
-      // var test = Ptah.binary("===", Ptah.push(identifier("$eval")), Ptah.shadow("eval"))
-      // var cons = Ptah.call(Ptah.pop(), [Ptah.call(Ptah.shadow("compile"), [trap.unwrap()  member(pop(), literal(0)))])])
-      // var alt = ptraps.apply(Ptah.pop(), Ptah.identifier("undefined"), node.arguments)
-
-      // if (aran.traps.apply) { var alt = call(shadow("traps", "apply"), [identifier("$eval"), pop()]) }
-      // else { var alt = call(member(unwrap(identifier("$eval")), "apply"), [identifier("window"), pop()]) }
-      // return sequence([push(array(node.arguments)), conditional(test, cons, alt)])
+      var test = Ptah.binary("===", Ptah.push(Ptah.identifier(escape(node.callee.name))), pshadow("eval"))
+      var cons = Ptah.sequence([
+        Pstack.pop(),
+        Ptah.call(
+          Ptah.identifier("eval"),
+          Ptah.call(pshadow("compile"), [ptrap.stringify(node.arguments)])
+        )
+      ])
+      if (aran.traps.apply) { var alt = ptrap.apply(Pstack.pop(), pshadow("undefined"), node.arguments) }
+      else { var alt = Ptah.call(Pstack.pop(), node.arguments) }
+      return Ptah.conditional(test, cons, alt)
     }
     if (!aran.traps.apply) { return node }
     if (node.callee.type !== "MemberExpression") { return ptrap.apply(node.callee, pshadow("undefined"), node.arguments) }
@@ -458,20 +504,37 @@ module.exports = function (aran) {
     return ptrap.get(node.object, node.property)
   }
 
-  // ID >>> $ID
+  // ID >>> #ID
   exprs.Identifier = function (node) {
     node.name = escape(node.name)
     return node
   }
 
-  // LIT >>> aran.traps.wrap(LIT)
+  // REGEXP >>> aran.traps.regexp(REGEXP)
+  // LIT >>> aran.traps.primitive(LIT)
   exprs.Literal = function (node) {
-    return ptrap.wrap(node)
+    if (node.regex) { return ptrap.regexp(node) }
+    return ptrap.primitive(node)
   }
 
 }
 
-},{"./miley.js":4,"./pstack.js":30,"./ptah.js":31,"./ptrap.js":32,"./util.js":34,"escodegen":5,"esprima":22,"esvalid":23}],4:[function(require,module,exports){
+},{"./error.js":4,"./miley.js":5,"./pstack.js":31,"./ptah.js":32,"./ptrap.js":33,"./switch.js":35,"./util.js":36,"escodegen":6,"esprima":23,"esvalid":24}],4:[function(require,module,exports){
+
+module.exports = function () {
+  var msg = ""
+  for (var i=0; i<arguments.length; i++) {
+    try {
+      msg = msg + JSON.stringify(arguments[i]) + "\n"
+    } catch (e) {
+      msg = msg + arguments[i]
+    }
+  }
+  throw new Error(msg)
+}
+},{}],5:[function(require,module,exports){
+
+var Error = require("./error.js")
 
 /////////////
 // Helpers //
@@ -485,19 +548,19 @@ module.exports = function (aran) {
 //
 // [is_identifier, name]
 //
-// ID             >>> [true, "ID"]
-// <expr>.ID      >>> [false, "ID"]
-// <expr>[<expr>] >>> [false, null]
+// ID             >>> ["ID", null]
+// <expr>.ID      >>> [null, "ID"]
+// <expr>[<expr>] >>> [null, null]
 function left (node, exprs) {
-  if (node.type === "Identifier") { return [true, node.name] }
-  if (node.type !== "MemberExpression") { throw new Error(node) }
+  if (node.type === "Identifier") { return [node.name, null] }
+  if (node.type !== "MemberExpression") { Error("Invalid left-hand side", node) }
   exprs.push(node.object)
   if (node.computed) {
     exprs.push(node.property)
-    return [false, null]
+    return [null, null]
   }
-  if (node.property.type !== "Identifier") { throw new Error(node) }
-  return [false, node.property.name]
+  if (node.property.type === "Identifier") { return [null, node.property.name] }
+  Error("Member expression uncomputed without identifier", node)
 }
 
 // Helper for variable declarations used in:
@@ -523,6 +586,12 @@ function declaration (node, exprs) {
 // Exports //
 /////////////
 
+var miley = {}
+module.exports = function (node) {
+  if (!miley[node.type]) { Error("Unsopported node type", node) }
+  return miley[node.type](node)
+}
+
 // interface Program <: Node {
 //   type: "Program";
 //   body: [ Statement ];
@@ -533,7 +602,7 @@ function declaration (node, exprs) {
 //              >>> []
 // <stmt>       >>> [1]
 // <stmt><stmt> >>> [2]
-exports.Program = function (node) {
+miley.Program = function (node) {
   return { stmts:node.body.slice(), exprs:[], infos:[node.body.length] }
 }
 
@@ -545,7 +614,7 @@ exports.Program = function (node) {
 // []
 //
 // ; >>> []
-exports.EmptyStatement = function (node) {
+miley.EmptyStatement = function (node) {
   return { stmts:[], exprs:[], infos:[] }
 }
 
@@ -561,7 +630,7 @@ exports.EmptyStatement = function (node) {
 // {<stmt>}       >>> [1]
 // {<stmt><stmt>} >>> [2]
 // etc...
-exports.BlockStatement = function (node) {
+miley.BlockStatement = function (node) {
   return { stmts:node.body.slice(), exprs:[], infos:[node.body.length] }
 }
 
@@ -574,7 +643,7 @@ exports.BlockStatement = function (node) {
 // []
 //
 // <expr>; >>> []
-exports.ExpressionStatement = function (node) {
+miley.ExpressionStatement = function (node) {
   return { stmts:[], exprs:[node.expression], infos:[] }
 }
 
@@ -590,7 +659,7 @@ exports.ExpressionStatement = function (node) {
 //
 // if (<expr>) <stmt>             >>> [false]
 // if (<expr>) <stmt> else <stmt> >>> [true]
-exports.IfStatement = function (node) {
+miley.IfStatement = function (node) {
   var stmts = [node.consequent]
   var alt = Boolean(node.alternate)
   if (alt) { stmts.push(node.alternate) }
@@ -607,7 +676,7 @@ exports.IfStatement = function (node) {
 // [label]
 //
 // ID:<stmt> >>> ["ID"]
-exports.LabeledStatement = function (node) {
+miley.LabeledStatement = function (node) {
   return { stmts:[node.body], exprs:[], infos:[node.label.name] }
 }
 
@@ -621,7 +690,7 @@ exports.LabeledStatement = function (node) {
 //
 // break;    >>> [null]
 // break ID; >>> ["ID"]
-exports.BreakStatement = function (node) {
+miley.BreakStatement = function (node) {
   return { stmts:[], exprs:[], infos:[node.label?node.label.name:null] }
 }
 
@@ -635,8 +704,8 @@ exports.BreakStatement = function (node) {
 //
 // continue;    >>> [null]
 // continue ID; >>> ["ID"]
-exports.ContinueStatement = function (node) {
-  return { stmts:[], exprs:[], infos:[label?label.name:null] }
+miley.ContinueStatement = function (node) {
+  return { stmts:[], exprs:[], infos:[node.label?node.label.name:null] }
 }
 
 // interface WithStatement <: Statement {
@@ -648,7 +717,7 @@ exports.ContinueStatement = function (node) {
 // []
 //
 // with (<expr>) <stmt> >>> []
-exports.WithStatement = function (node) {
+miley.WithStatement = function (node) {
   return { stmts:[node.body], exprs:[node.object], infos:[] }
 }
 
@@ -677,7 +746,7 @@ exports.WithStatement = function (node) {
 // switch (<expr>) {default:<stmt>}                   >>> [[false], [1]]
 // switch (<expr>) {case<expr>: case<expr>: default:} >>> [[true,true,false], [0,0,0]]
 // etc...
-exports.SwitchStatement = function (node) {
+miley.SwitchStatement = function (node) {
   var stmts = []
   var exprs = [node.discriminant]
   var cases = []
@@ -699,7 +768,7 @@ exports.SwitchStatement = function (node) {
 //
 // return;        >>> [false]
 // return <expr>; >>> [true]
-exports.ReturnStatement = function (node) {
+miley.ReturnStatement = function (node) {
   var exprs = node.argument?[node.argument]:[]
   return { stmts:[], exprs:exprs, infos:[Boolean(node.argument)] }
 }
@@ -713,7 +782,7 @@ exports.ReturnStatement = function (node) {
 // []
 //
 // throw <expr>; >>> []
-exports.ThrowStatement = function (node) {
+miley.ThrowStatement = function (node) {
   return { stmts:[], exprs:[node.argument], infos:[] }
 }
 
@@ -741,16 +810,23 @@ exports.ThrowStatement = function (node) {
 // try {} catch (ID) {<stmt>}                        >>> ["ID", 0, 1, null]
 // try {<stmt>} catch (ID) {<stmt>} finally {<stmt>} >>> ["ID", 1, 1, 1]
 // etc..
-exports.TryStatement = function (node) {
+miley.TryStatement = function (node) {
   var stmts = node.block.body.slice()
+  var infos = [stmts.length]
   if (node.handler) {
-    var infos = [node.handler.param.name, node.block.body.length, node.handler.body.length]
+    infos.push(node.handler.param.name)
+    infos.push(node.handler.body.length)
     stmts = stmts.concat(node.handler.body)
-  } else { var infos = [null, node.block.body.length, null] }
+  } else {
+    infos.push(null)
+    infos.push(null)
+  }
   if (node.finalizer) {
     infos.push(node.finalizer.body.length)
     stmts = stmts.concat(node.finalizer.body)
-  } else { infos.push(null) }
+  } else {
+    infos.push(null)
+  }
   return { stmts:stmts, exprs:[], infos:infos }
 }
 
@@ -764,7 +840,7 @@ exports.TryStatement = function (node) {
 // []
 //
 // while (<expr>) <stmt> >>> []
-exports.WhileStatement = function (node) {
+miley.WhileStatement = function (node) {
   return { stmts:[node.body], exprs:[node.test], infos:[] }
 }
 
@@ -778,7 +854,7 @@ exports.WhileStatement = function (node) {
 // []
 //
 // do <stmt> while (<expr>) >>> []
-exports.DoWhileStatement = function (node) {
+miley.DoWhileStatement = function (node) {
   return { stmts:[node.body], exprs:[node.test], infos:[] }
 }
 
@@ -798,12 +874,12 @@ exports.DoWhileStatement = function (node) {
 // for (;<expr>;)                    >>> [false, true, false]
 // for (var ID=<expr>;;)             >>> [true, false, false, [["ID",true]]]
 // for (var ID1=<expr>, ID2;;)       >>> [true, false, false, [["ID1",true],["ID2",false]]]
-exports.ForStatement = function (node) {
+miley.ForStatement = function (node) {
   var exprs = []
   var infos = [node.init, node.test, node.update].map(Boolean)
   if (node.init) {
     if (node.init.type !== "VariableDeclaration") { exprs.push(node.init) }
-    else { infos = infos.concat(declaration(node.init, exprs)) }
+    else { infos = infos.push(declaration(node.init, exprs)) }
   }
   if (node.test) { exprs.push(node.test) }
   if (node.update) { exprs.push(node.update) }
@@ -819,25 +895,28 @@ exports.ForStatement = function (node) {
 //   each: boolean;
 // }
 //
-// [is_declaration, is_identifier/is_initialized, name]
+// [maybe_declaration, maybe_identifier, maybe_property]
 //
-// for (var ID in <expr>) <stmt>          >>> [true, false, "ID"]
-// for (var ID=<expr> in <expr>) <stmt>   >>> [true, true, "ID"]
-// for (ID in <expr>) <stmt>              >>> [false, true, "ID"]
-// for (<expr>.ID in <expr>) <stmt>       >>> [false, false, "ID"]
-// for (<expr>[<expr>] in <expr>) <stmt>  >>> [false, false, null]
-exports.ForInStatement = function (node) {
-  var has_var = node.left.type === "VariableDeclaration"
-  var exprs = []
-  var infos
-  if (has_var) {
-    if (node.left.declarations.length != 1) { throw new Error(node) }
-    var is_init = Boolean(node.left.declarations[0].init)
-    infos = [true, is_init, node.left.declarations[0].id.name]
-    if (is_init) { exprs.push(node.left.declarations[0].init) }
+// for (var ID in <expr>) <stmt>          >>> [["ID", false], null, null]
+// for (var ID=<expr> in <expr>) <stmt>   >>> [["ID",true], null, null]
+// for (ID in <expr>) <stmt>              >>> [null, "ID", null]
+// for (<expr>.ID in <expr>) <stmt>       >>> [null, null, "ID"]
+// for (<expr>[<expr>] in <expr>) <stmt>  >>> [null, null, null]
+miley.ForInStatement = function (node) {
+  var exprs = [node.right]
+  if (node.left.type === "VariableDeclaration") {
+    if (node.left.declarations.length !== 1) { Error("Not unique variable declaration in for-in statement", node) }
+    var init = node.left.declarations[0].init
+    var infos = [[node.left.declarations[0].id.name, Boolean(init)], null, null]
+    if (init) { exprs.unshift(init) }
+  } else if (node.left.type === "Identifier") {
+    var infos = [null, node.left.type.name, null]
+  } else if (node.left.type === "MemberExpression") {
+    var infos = [null, null, node.left.computed?null:node.left.property.name]
+    exprs.push(node.left.object)
+    if (node.left.computed) { exprs.push(node.left.property) }
   } else {
-    infos = left(node.left, exprs)
-    infos.unshift(false)
+    Error("Wrong left-hand side in for-in statement", node)
   }
   return { stmts:[node.body], exprs:exprs, infos:infos }
 }
@@ -862,7 +941,7 @@ exports.ForInStatement = function (node) {
 // function ID0 (ID1) {}          >>> ["ID0", 0, ["ID1"]]
 // function ID0 (ID1, ID2) {}     >>> ["ID0", 0, ["ID1", "ID2"]]
 // etc...
-exports.FunctionDeclaration = function (node) {
+miley.FunctionDeclaration = function (node) {
   return {
     stmts:node.body.body.slice(),
     exprs:[],
@@ -888,13 +967,13 @@ exports.FunctionDeclaration = function (node) {
 //
 // [[initialized,name]]
 //
-// var ID;              >>> [["ID"], [false]]
-// var ID=<expr>;       >>> [["ID"], [true]]
-// var ID1, ID2=<expr>; >>> [["ID1","ID2"], [false, true]]
+// var ID;              >>> [["ID", false]]
+// var ID=<expr>;       >>> [["ID", true]]
+// var ID1, ID2=<expr>; >>> [["ID1", false], ["ID2", true]]
 // etc...
-exports.VariableDeclaration = function (node) {
+miley.VariableDeclaration = function (node) {
   var exprs = []
-  return { stmts:[], exprs:exprs, infos:[declaration(node, exprs)] } 
+  return { stmts:[], exprs:exprs, infos:declaration(node, exprs) }
 }
 
 
@@ -905,7 +984,7 @@ exports.VariableDeclaration = function (node) {
 // []
 //
 // this >>> []
-exports.ThisExpression = function (node) {
+miley.ThisExpression = function (node) {
   return { stmts:[], exprs:[], infos:[] }
 }
 
@@ -923,7 +1002,7 @@ exports.ThisExpression = function (node) {
 // [<expr>,]       >>> [[true, false]]
 // [,,<expr>]      >>> [[false, false, true]]
 // etc...
-exports.ArrayExpression = function (node) {
+miley.ArrayExpression = function (node) {
   var exprs = []
   var are_present = []
   node.elements.forEach(function (e) {
@@ -944,15 +1023,25 @@ exports.ArrayExpression = function (node) {
 //   value: Expression;
 //   kind: "init" | "get" | "set";
 // }
-exports.ObjectExpression = function (node) {
+//
+//
+miley.ObjectExpression = function (node) {
+  var stmts = []
   var exprs = []
-  var props = []
-  node.properties.forEach(function (p) {
-    exprs.push(p.value)
-    var is_id = p.key.type === "Identifier"
-    props.push([p.kind, is_id, is_id?p.key.name:p.key.value])
+  var infos = node.properties.map(function (p) {
+    var info = [p.kind]
+    if (p.key.type === "Identifer") { infos.unshift(p.key.name) }
+    else { info.unshift(JSON.stringify(p.key.value)) }
+    if (p.kind !== "init") {
+      info.push(p.value.body.body.length)
+      stmts.push(p.value.body.body.slice())
+    } else {
+      info.push(null)
+      exprs.push(p.value)
+    }
+    return info
   })
-  return { stmts:[], exprs:exprs, infos:[props] }
+  return { stmts:stmts, exprs:exprs, infos:infos }
 }
 
 
@@ -973,7 +1062,7 @@ exports.ObjectExpression = function (node) {
 // function ID () {}            >>> ["ID", [], 0]
 // function (ID1, ID2) {<stmt>} >>> [null, ["ID1", "ID2"], 1]
 // etc..
-exports.FunctionExpression = function (node) {
+miley.FunctionExpression = function (node) {
   return {
     stmts:node.body.body.slice(),
     exprs:[],
@@ -997,7 +1086,7 @@ exports.FunctionExpression = function (node) {
 // (<expr>)         >>> [1]
 // (<expr>, <expr>) >>> [2]
 // etc...
-exports.SequenceExpression = function (node) {
+miley.SequenceExpression = function (node) {
   return { stmts:[], exprs:node.expressions.slice(), infos:[node.expressions.length] }
 }
 
@@ -1012,18 +1101,23 @@ exports.SequenceExpression = function (node) {
 //   "-" | "+" | "!" | "~" | "typeof" | "void" | "delete"
 // }
 //
-// [operator, is_identifier, name]
+// [operator, maybe_identifier, maybe_property]
 //
-// OP <expr>             >>> [OP]
-// delete ID             >>> [delete, true, ID]
-// delete <expr>.ID      >>> [delete, false, ID]
-// delete <expr>[<expr>] >>> [delete, false, null]
-exports.UnaryExpression = function (node) {
-  if (node.operator === "delete") {
-    var exprs = []
-    var infos = left(node.argument, exprs)
-    infos.unshift("delete")
-    return { stmts:[], exprs:exprs, infos:infos }
+// typeof ID             >>> ["typeof", "ID", null]
+// delete ID             >>> ["delete", "ID", null]
+// delete <expr>.ID      >>> ["delete", null, "ID"]
+// delete <expr>[<expr>] >>> ["delete", null, null]
+// delete <expr>         >>> ["delete"]
+// OP <expr>             >>> ["OP"]
+miley.UnaryExpression = function (node) {
+  if (node.operator === "typeof" && node.argument.type === "Identifier") { return {stmts:[], exprs:[], infos:["typeof", node.argument.name]} }
+  if (node.operator === "delete" && node.argument.type === "Identifier") { return {stmts:[], exprs:[], infos:["delete", node.argument.name, null]} }
+  if (node.operator === "delete" && node.argument.type === "MemberExpression") {
+    if (node.argument.computed) {
+      return {stmts:[], exprs:[node.argument.object, node.argument.property], infos:["delete", null, null]}
+    } else {
+      return {stmts:[], exprs:[node.argument.object], infos:["delete", null, node.argument.property.name]}
+    }
   }
   return { stmts:[], exprs:[node.argument], infos:[node.operator] }
 }
@@ -1046,8 +1140,8 @@ exports.UnaryExpression = function (node) {
 //
 // [operator]
 //
-// <expr> OP <expr> >>> [OP]
-exports.BinaryExpression = function (node) {
+// <expr> OP <expr> >>> ["OP"]
+miley.BinaryExpression = function (node) {
   return { stmts:[], exprs:[node.left, node.right], infos:[node.operator] }
 }
 
@@ -1066,10 +1160,10 @@ exports.BinaryExpression = function (node) {
 //
 // [operator, is_identifier, name]
 //
-// ID OP <expr>             >>> [OP, true, ID] 
-// <expr>.ID OP <expr>      >>> [OP, false, ID]
-// <expr>[<expr>] OP <expr> >>> [OP, false, null]
-exports.AssignmentExpression = function (node) {
+// ID OP <expr>             >>> ["OP", "ID", null] 
+// <expr>.ID OP <expr>      >>> ["OP", null, "ID"]
+// <expr>[<expr>] OP <expr> >>> ["OP", null, null]
+miley.AssignmentExpression = function (node) {
   var exprs = [node.right]
   var infos = left(node.left, exprs)
   infos.unshift(node.operator)
@@ -1089,10 +1183,10 @@ exports.AssignmentExpression = function (node) {
 //
 // [operator, is_identifier, name]
 //
-// ID OP           >>> [OP, true, "ID"]
-// <expr>.ID OP    >>> [OP, false, "ID"]
-// <expr>[expr] OP >>> [OP, false, null]
-exports.UpdateExpression = function (node) {
+// ID OP           >>> [OP, "ID", null]
+// <expr>.ID OP    >>> [OP, null, "ID"]
+// <expr>[expr] OP >>> [OP, null, null]
+miley.UpdateExpression = function (node) {
   var exprs = []
   var infos = left(node.argument, exprs)
   infos.unshift(node.operator)
@@ -1113,7 +1207,7 @@ exports.UpdateExpression = function (node) {
 // [operator]
 //
 // <expr> OP <expr> >>> [OP]
-exports.LogicalExpression = function (node) {
+miley.LogicalExpression = function (node) {
   return { stmts:[], exprs:[node.left, node.right], infos:[node.operator] }
 }
 
@@ -1128,7 +1222,7 @@ exports.LogicalExpression = function (node) {
 // []
 //
 // <expr>?<expr>:<expr> >>> []
-exports.ConditionalExpression = function (node) {
+miley.ConditionalExpression = function (node) {
   return { stmts:[], exprs:[node.test, node.alternate, node.consequent], infos:[] }
 }
 
@@ -1144,7 +1238,7 @@ exports.ConditionalExpression = function (node) {
 // new <expr>()              >>> [0]
 // new <expr>(<expr>)        >>> [1]
 // new <expr>(<expr>,<expr>) >>> [2]
-exports.NewExpression = function (node) {
+miley.NewExpression = function (node) {
   var exprs = node.arguments.slice()
   exprs.unshift(node.callee)
   return {
@@ -1161,21 +1255,21 @@ exports.NewExpression = function (node) {
 //   arguments: [ Expression ];
 // }
 //
-// [arguments_length, is_member, is_computed]
+// [arguments_length, is_member, maybe_property]
 //
-// <expr>()                      >>> [0, false]
-// <expr>(<expr>)                >>> [1, false]
-// <expr>(<expr>,<expr>)         >>> [2, false]
-// <expr>.<id>(<expr>,<expr>)    >>> [2, true, false]
-// <expr>[<expr>](<expr>,<expr>) >>> [2, true, true]
-exports.CallExpression = function (node) {
+// <expr>()                      >>> [0, false, null]
+// <expr>(<expr>)                >>> [1, false, null]
+// <expr>(<expr>,<expr>)         >>> [2, false, null]
+// <expr>.ID(<expr>,<expr>)      >>> [2, true, "ID"]
+// <expr>[<expr>](<expr>,<expr>) >>> [2, true, null]
+miley.CallExpression = function (node) {
   var exprs = node.arguments.slice()
   var is_member = node.callee.type === "MemberExpression"
   var infos = [node.arguments.length, is_member]
   if (is_member) {
     var is_computed = node.callee.computed
-    infos.push(is_computed)
-    if (is_computed) { exprs.unshift(node.property) }
+    if (is_computed) { exprs.unshift(node.callee.property) }
+    infos.push(is_computed?null:node.callee.property.name)
     exprs.unshift(node.callee.object)
   } else {
     exprs.unshift(node.callee)
@@ -1195,13 +1289,13 @@ exports.CallExpression = function (node) {
 //
 // <expr>.ID      >>> ["ID"]
 // <expr>[<expr>] >>> [null]
-exports.MemberExpression = function (node) {
+miley.MemberExpression = function (node) {
   var exprs = [node.object]
   var infos = []
   if (node.computed) {
     exprs.push(node.property)
   } else {
-    if (node.property.type !== "Identifier") { throw new Error(node) }
+    if (node.property.type !== "Identifier") { Error("Member expression uncomputed without identifier", node) }
     infos.push(node.property.name)
   }
   return { stmts:[], exprs:exprs, infos:infos }
@@ -1216,7 +1310,7 @@ exports.MemberExpression = function (node) {
 // [name]
 //
 // ID >>> ["ID"]
-exports.Identifier = function (node) {
+miley.Identifier = function (node) {
   return { stmts:[], exprs:[], infos:[node.name] }
 }
 
@@ -1229,11 +1323,11 @@ exports.Identifier = function (node) {
 // [value]
 //
 // LIT >>> [LIT]
-exports.Literal = function (node) {
+miley.Literal = function (node) {
   return { stmts:[], exprs:[], infos:[node.value] }
 }
 
-},{}],5:[function(require,module,exports){
+},{"./error.js":4}],6:[function(require,module,exports){
 (function (global){
 /*
   Copyright (C) 2012-2014 Yusuke Suzuki <utatane.tea@gmail.com>
@@ -3728,7 +3822,7 @@ exports.Literal = function (node) {
 /* vim: set sw=4 ts=4 et tw=80 : */
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./package.json":21,"estraverse":6,"esutils":10,"source-map":11}],6:[function(require,module,exports){
+},{"./package.json":22,"estraverse":7,"esutils":11,"source-map":12}],7:[function(require,module,exports){
 /*
   Copyright (C) 2012-2013 Yusuke Suzuki <utatane.tea@gmail.com>
   Copyright (C) 2012 Ariya Hidayat <ariya.hidayat@gmail.com>
@@ -4573,7 +4667,7 @@ exports.Literal = function (node) {
 }));
 /* vim: set sw=4 ts=4 et tw=80 : */
 
-},{}],7:[function(require,module,exports){
+},{}],8:[function(require,module,exports){
 /*
   Copyright (C) 2013 Yusuke Suzuki <utatane.tea@gmail.com>
 
@@ -4719,7 +4813,7 @@ exports.Literal = function (node) {
 }());
 /* vim: set sw=4 ts=4 et tw=80 : */
 
-},{}],8:[function(require,module,exports){
+},{}],9:[function(require,module,exports){
 /*
   Copyright (C) 2013-2014 Yusuke Suzuki <utatane.tea@gmail.com>
   Copyright (C) 2014 Ivan Nikulin <ifaaan@gmail.com>
@@ -4822,7 +4916,7 @@ exports.Literal = function (node) {
 }());
 /* vim: set sw=4 ts=4 et tw=80 : */
 
-},{}],9:[function(require,module,exports){
+},{}],10:[function(require,module,exports){
 /*
   Copyright (C) 2013 Yusuke Suzuki <utatane.tea@gmail.com>
 
@@ -4961,7 +5055,7 @@ exports.Literal = function (node) {
 }());
 /* vim: set sw=4 ts=4 et tw=80 : */
 
-},{"./code":8}],10:[function(require,module,exports){
+},{"./code":9}],11:[function(require,module,exports){
 /*
   Copyright (C) 2013 Yusuke Suzuki <utatane.tea@gmail.com>
 
@@ -4996,7 +5090,7 @@ exports.Literal = function (node) {
 }());
 /* vim: set sw=4 ts=4 et tw=80 : */
 
-},{"./ast":7,"./code":8,"./keyword":9}],11:[function(require,module,exports){
+},{"./ast":8,"./code":9,"./keyword":10}],12:[function(require,module,exports){
 /*
  * Copyright 2009-2011 Mozilla Foundation and contributors
  * Licensed under the New BSD license. See LICENSE.txt or:
@@ -5006,7 +5100,7 @@ exports.SourceMapGenerator = require('./source-map/source-map-generator').Source
 exports.SourceMapConsumer = require('./source-map/source-map-consumer').SourceMapConsumer;
 exports.SourceNode = require('./source-map/source-node').SourceNode;
 
-},{"./source-map/source-map-consumer":16,"./source-map/source-map-generator":17,"./source-map/source-node":18}],12:[function(require,module,exports){
+},{"./source-map/source-map-consumer":17,"./source-map/source-map-generator":18,"./source-map/source-node":19}],13:[function(require,module,exports){
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
  * Copyright 2011 Mozilla Foundation and contributors
@@ -5105,7 +5199,7 @@ define(function (require, exports, module) {
 
 });
 
-},{"./util":19,"amdefine":20}],13:[function(require,module,exports){
+},{"./util":20,"amdefine":21}],14:[function(require,module,exports){
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
  * Copyright 2011 Mozilla Foundation and contributors
@@ -5249,7 +5343,7 @@ define(function (require, exports, module) {
 
 });
 
-},{"./base64":14,"amdefine":20}],14:[function(require,module,exports){
+},{"./base64":15,"amdefine":21}],15:[function(require,module,exports){
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
  * Copyright 2011 Mozilla Foundation and contributors
@@ -5293,7 +5387,7 @@ define(function (require, exports, module) {
 
 });
 
-},{"amdefine":20}],15:[function(require,module,exports){
+},{"amdefine":21}],16:[function(require,module,exports){
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
  * Copyright 2011 Mozilla Foundation and contributors
@@ -5375,7 +5469,7 @@ define(function (require, exports, module) {
 
 });
 
-},{"amdefine":20}],16:[function(require,module,exports){
+},{"amdefine":21}],17:[function(require,module,exports){
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
  * Copyright 2011 Mozilla Foundation and contributors
@@ -5953,7 +6047,7 @@ define(function (require, exports, module) {
 
 });
 
-},{"./array-set":12,"./base64-vlq":13,"./binary-search":15,"./util":19,"amdefine":20}],17:[function(require,module,exports){
+},{"./array-set":13,"./base64-vlq":14,"./binary-search":16,"./util":20,"amdefine":21}],18:[function(require,module,exports){
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
  * Copyright 2011 Mozilla Foundation and contributors
@@ -6356,7 +6450,7 @@ define(function (require, exports, module) {
 
 });
 
-},{"./array-set":12,"./base64-vlq":13,"./util":19,"amdefine":20}],18:[function(require,module,exports){
+},{"./array-set":13,"./base64-vlq":14,"./util":20,"amdefine":21}],19:[function(require,module,exports){
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
  * Copyright 2011 Mozilla Foundation and contributors
@@ -6772,7 +6866,7 @@ define(function (require, exports, module) {
 
 });
 
-},{"./source-map-generator":17,"./util":19,"amdefine":20}],19:[function(require,module,exports){
+},{"./source-map-generator":18,"./util":20,"amdefine":21}],20:[function(require,module,exports){
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
  * Copyright 2011 Mozilla Foundation and contributors
@@ -7093,7 +7187,7 @@ define(function (require, exports, module) {
 
 });
 
-},{"amdefine":20}],20:[function(require,module,exports){
+},{"amdefine":21}],21:[function(require,module,exports){
 (function (process,__filename){
 /** vim: et:ts=4:sw=4:sts=4
  * @license amdefine 0.1.0 Copyright (c) 2011, The Dojo Foundation All Rights Reserved.
@@ -7396,7 +7490,7 @@ function amdefine(module, requireFn) {
 module.exports = amdefine;
 
 }).call(this,require('_process'),"/node_modules/Aran/node_modules/escodegen/node_modules/source-map/node_modules/amdefine/amdefine.js")
-},{"_process":36,"path":35}],21:[function(require,module,exports){
+},{"_process":38,"path":37}],22:[function(require,module,exports){
 module.exports={
   "name": "escodegen",
   "description": "ECMAScript code generator",
@@ -7483,7 +7577,7 @@ module.exports={
   "_resolved": "https://registry.npmjs.org/escodegen/-/escodegen-1.5.0.tgz"
 }
 
-},{}],22:[function(require,module,exports){
+},{}],23:[function(require,module,exports){
 /*
   Copyright (C) 2013 Ariya Hidayat <ariya.hidayat@gmail.com>
   Copyright (C) 2013 Thaddee Tyl <thaddee.tyl@gmail.com>
@@ -11241,7 +11335,7 @@ parseStatement: true, parseSourceElement: true */
 }));
 /* vim: set sw=4 ts=4 et tw=80 : */
 
-},{}],23:[function(require,module,exports){
+},{}],24:[function(require,module,exports){
 "use strict";
 var esutils = require("esutils");
 var merge = Object.assign || require("object-assign");
@@ -12049,15 +12143,15 @@ module.exports = {
 
 };
 
-},{"esutils":27,"object-assign":28}],24:[function(require,module,exports){
-arguments[4][7][0].apply(exports,arguments)
-},{"dup":7}],25:[function(require,module,exports){
+},{"esutils":28,"object-assign":29}],25:[function(require,module,exports){
 arguments[4][8][0].apply(exports,arguments)
 },{"dup":8}],26:[function(require,module,exports){
 arguments[4][9][0].apply(exports,arguments)
-},{"./code":25,"dup":9}],27:[function(require,module,exports){
+},{"dup":9}],27:[function(require,module,exports){
 arguments[4][10][0].apply(exports,arguments)
-},{"./ast":24,"./code":25,"./keyword":26,"dup":10}],28:[function(require,module,exports){
+},{"./code":26,"dup":10}],28:[function(require,module,exports){
+arguments[4][11][0].apply(exports,arguments)
+},{"./ast":25,"./code":26,"./keyword":27,"dup":11}],29:[function(require,module,exports){
 /*!
 	object-assign
 	ES6 Object.assign() ponyfill
@@ -12111,7 +12205,7 @@ arguments[4][10][0].apply(exports,arguments)
 	}
 })();
 
-},{}],29:[function(require,module,exports){
+},{}],30:[function(require,module,exports){
 
 // var o = {}
 // var p = new Proxy(o, {
@@ -12198,7 +12292,7 @@ module.exports = function (aran) {
 
 }
 
-},{"./util.js":34}],30:[function(require,module,exports){
+},{"./util.js":36}],31:[function(require,module,exports){
 
 var Ptah = require("./ptah.js")
 
@@ -12222,7 +12316,7 @@ exports.get1 = function () { return shadow("get1", []) }
 exports.get2 = function () { return shadow("get2", []) }
 exports.get3 = function () { return shadow("get3", []) }
 
-},{"./ptah.js":31}],31:[function(require,module,exports){
+},{"./ptah.js":32}],32:[function(require,module,exports){
 
 function nodify (x) {
   if (x === null) { return {type:"Literal", value:x} }
@@ -12286,6 +12380,15 @@ exports.block = function (body) {
   }
 }
 
+exports.function = function (params, body) {
+  return {
+    type: "FunctionExpression",
+    id: null,
+    params: params.map(function (p) { return {type:"Identifier", name:p} }),
+    body: {type:"BlockStatement", body:body},
+  }
+}
+
 exports.call = function (callee, arguments) {
   return {
     type: "CallExpression",
@@ -12342,13 +12445,13 @@ exports.exprstmt = function (expression) {
   }
 }
 
-exports.try = function (try_stmts, catch_clause, finally_stmts) {
+exports.try = function (try_stmts, catch_param, catch_stmts, finally_stmts) {
   return {
     type: "TryStatement",
-    block: block(try_stmts),
+    block: {type:"BlockStatement", body:try_stmts},
     guardedHandlers: [],
-    handlers: catch_clause?[catch_clause]:[],
-    finalizer: finally_stmts?block(finally_stmts):null
+    handlers: catch_param?[{type:"CatchClause", param:{type:"Identifier", name:catch_param}, body:{type:"BlockStatement", body:catch_stmts}}]:[],
+    finalizer: finally_stmts?{type:"BlockStatement", body:finally_stmts}:null
   }
 }
 
@@ -12375,6 +12478,31 @@ exports.for = function (init, test, update, body) {
     init: init,
     test: test,
     update: update,
+    body: body
+  }
+}
+
+exports.if = function (test, consequent, alternate) {
+  return {
+    type: "IfStatement",
+    test: test,
+    consequent: consequent,
+    alternate: alternate
+  }
+}
+
+exports.return = function (argument) {
+  return {
+    type: "ReturnStatement",
+    argument: argument
+  }
+}
+
+exports.label = function (label, body) {
+  if (typeof label === "string") { label = {type:"Identifier", name:label} }
+  return {
+    type: "LabeledStatement",
+    label: label,
     body: body
   }
 }
@@ -12436,27 +12564,33 @@ exports.for = function (init, test, update, body) {
 
 
 
-},{}],32:[function(require,module,exports){
+},{}],33:[function(require,module,exports){
 
 var Ptah = require("./ptah.js")
 var Util = require("./util.js")
 
 module.exports = function (aran) {
   
-  function trap (name, args) { return Ptah.call(Ptah.member(Ptah.member(Ptah.identifier("aran"), "traps"), name), args) }
-  function set (o, p, v) { return Ptah.assignment(Ptah.member(o, p), v) }
-  function del (o, p) { return Ptah.unary("delete", Ptah.member(o, p)) }
+  function trap (name, args) { return Ptah.call(Ptah.member(Ptah.member(Ptah.identifier("aran"), "traps"), name), args) }  
 
   return {
-    wrap:       aran.traps.wrap       ? function (x) { return trap("wrap", [x]) }                                   : Util.identity,
-    booleanize: aran.traps.booleanize ? function (x) { return trap("booleanize", [x]) }                             : Util.identity,
-    stringify:  aran.traps.stringify  ? function (x) { return trap("stringify", [x]) }                              : Util.identity,
+    primitive:  aran.traps.primitive  ? function (x) { return trap("primitive", [x]) }                              : Util.identity,
+    function:   aran.traps.function   ? function (x) { return trap("function", [x]) }                               : Util.identity,
+    arguments:  aran.traps.arguments  ? function (x) { return trap("arguments", [x]) }                              : Util.identity,
+    object:     aran.traps.object     ? function (x) { return trap("object", [x]) }                                 : Util.identity,
+    array:      aran.traps.array      ? function (x) { return trap("array", [x]) }                                  : Util.identity,
+    regexp:     aran.traps.regexp     ? function (x) { return trap("regexp", [x]) }                                 : Util.identity,
+    booleanize: aran.traps.booleanize ? function (x, test) { return trap("booleanize", [Ptah.literal(test), x]) }   : Util.identity,
+    stringify:  aran.traps.stringify  ? function (xs) { return trap("stringify", xs) }                              : function (xs) { return xs[0] },
+    throw:      aran.traps.throw      ? function (x) { return trap("throw", [x]) }                                  : Util.identity,
+    catch:      aran.traps.catch      ? function (x) { return trap("catch", [x]) }                                  : Util.identity,
     get:        aran.traps.get        ? function (o, p) { return trap("get", [o, p]) }                              : Ptah.member,
     unary:      aran.traps.unary      ? function (op, x) { return trap("unary", [Ptah.literal(op), x]) }            : Ptah.unary,
     binary:     aran.traps.binary     ? function (op, x1, x2) { return trap("binary", [Ptah.literal(op), x1, x2]) } : Ptah.binary,
     new:        aran.traps.new        ? function (f, xs) { return trap("new", [f, Ptah.array(xs)]) }                : Ptah.new,
-    set:        aran.traps.set        ? function (o, p, v) { return trap("set", [o, p, v]) }                        : set,
-    delete:     aran.traps.delete     ? function (o, p) { return trap("delete", [o, p]) }                           : del,
+    set:        aran.traps.set        ? function (o, p, v) { return trap("set", [o, p, v]) }                        : function set (o, p, v) { return Ptah.assignment(Ptah.member(o, p), v) },
+    delete:     aran.traps.delete     ? function (o, p) { return trap("delete", [o, p]) }                           : function del (o, p) { return Ptah.unary("delete", Ptah.member(o, p)) },
+    erase:      aran.traps.erase      ? function (x, name) { return trap("erase", [Ptah.literal(name), x]) }        : Util.identity,
     apply: function (f, o, xs) { return trap("apply", [f, o, Ptah.array(xs)]) },
     enumerate: function (o) { return trap("enumerate", [o]) }
   }
@@ -12500,7 +12634,7 @@ module.exports = function (aran) {
   // else { o.construct = function (fct, args) { return exports.new(shadow(fct, args) } }
 
 
-},{"./ptah.js":31,"./util.js":34}],33:[function(require,module,exports){
+},{"./ptah.js":32,"./util.js":36}],34:[function(require,module,exports){
 
 module.exports = function (aran) {
 
@@ -12544,7 +12678,37 @@ module.exports = function (aran) {
 
 }
 
-},{}],34:[function(require,module,exports){
+},{}],35:[function(require,module,exports){
+
+var counter = 0
+var labels = [null]
+
+var masks = ["FunctionExpression", "FunctionDeclaration", "ForStatement", "ForInStatement", "WhileStatement", "DoWhileStatement"]
+
+exports.escape = function (id) {
+  if (id.name.indexOf("switch") === 0) { id.name = "$"+id.name}
+}
+
+exports.push = function (type) {
+  if (masks.indexOf(type) !== -1) {
+    labels.push(null)
+    return true
+  }
+  if (type === "SwitchStatement") {
+    labels.push("switch"+(++counter))
+    return true
+  }
+  return false
+}
+
+exports.get = function () {
+  if (labels[labels.length-1]) { return {type:"Identifier", name:labels[labels.length-1]} }
+  return null
+}
+
+exports.pop = function () { labels.pop() }
+
+},{}],36:[function(require,module,exports){
 
 exports.flaten = function (xss) {
   return xss.reduce(function (xs, ys) { return xs.concat(ys) }, [])
@@ -12564,15 +12728,17 @@ exports.extract = function (o1) {
 }
 
 exports.inject = function (o1, o2) {
-  var k
-  for (k in o2) { delete o2[k] }
-  for (k in o1) { o2[k] = o1[k] }
+  if (o1 !== o2) {
+    var k
+    for (k in o2) { delete o2[k] }
+    for (k in o1) { o2[k] = o1[k] }
+  }
 }
 
 exports.identity = function (x) { return x }
 
 exports.nil = function () {}
-},{}],35:[function(require,module,exports){
+},{}],37:[function(require,module,exports){
 (function (process){
 // Copyright Joyent, Inc. and other Node contributors.
 //
@@ -12800,7 +12966,7 @@ var substr = 'ab'.substr(-1) === 'b'
 ;
 
 }).call(this,require('_process'))
-},{"_process":36}],36:[function(require,module,exports){
+},{"_process":38}],38:[function(require,module,exports){
 // shim for using process in browser
 
 var process = module.exports = {};

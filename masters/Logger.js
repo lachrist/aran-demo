@@ -20,9 +20,15 @@ function logtrap (name) {
 }
 
 var traps = {
-  wrap: function (x) { logtrap('wrap', x); return x; },
+  primitive: function (x) { logtrap('primitive', x); return x; },
+  object: function (x) { logtrap('object', x); return x; },
+  array: function (x) { logtrap('array', x); return x; },
+  function: function (x) { logtrap('function', x); return x; },
+  regexp: function (x) { logtrap('regexp', x); return x; },
   booleanize: function (x) { logtrap('booleanize', x); return x; },
   stringify: function (x) { logtrap('stringify', x); return x; },
+  throw: function (x) { logtrap('throw', x); return x; },
+  catch: function (x) { logtrap('catch', x); return x; },
   unary: function (op, x) { logtrap('unary', op, x); return eval(op+' x'); },
   binary: function (op, x1, x2) { logtrap('binary', op, x1, x2); return eval('x1 '+op+' x2'); },
   apply: function (f, o, xs) { logtrap('apply', f, o, xs); return f.apply(o, xs); },
@@ -36,6 +42,7 @@ var traps = {
   get: function (o, p) { logtrap('get', o, p); return o[p]; },
   set: function (o, p, v) { logtrap('set', o, p, v); return o[p]=v; },
   delete: function (o, p) { logtrap('delete', o, p); return delete o[p]; },
+  erase: function (r, p) { logtrap('erase', r, p); return r; },
   enumerate: function (o) {
     logtrap('enumerate', o);
     var ps = [];

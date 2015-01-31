@@ -96,10 +96,13 @@
             if (res !== undefined) {
               result_label.style.visibility = "visible"
               result.textContent = res
+              console.dir(res)
             }
             if (err !== undefined) {
               error_label.style.visibility = "visible"
               error.textContent = err
+              console.dir(err)
+              throw err
             }
           }
         }
