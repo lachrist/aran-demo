@@ -1,3 +1,3 @@
-var sandbox = window;
+var sandbox = {};
 var hooks = {};
 var traps = {};

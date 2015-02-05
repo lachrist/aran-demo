@@ -23,6 +23,7 @@ var traps = {
   primitive: function (x) { logtrap('primitive', x); return x; },
   object: function (x) { logtrap('object', x); return x; },
   array: function (x) { logtrap('array', x); return x; },
+  arguments: function (x) { logtrap('arguments', x); return x; }
   function: function (x) { logtrap('function', x); return x; },
   regexp: function (x) { logtrap('regexp', x); return x; },
   booleanize: function (x) { logtrap('booleanize', x); return x; },
@@ -42,11 +43,12 @@ var traps = {
   get: function (o, p) { logtrap('get', o, p); return o[p]; },
   set: function (o, p, v) { logtrap('set', o, p, v); return o[p]=v; },
   delete: function (o, p) { logtrap('delete', o, p); return delete o[p]; },
-  erase: function (r, p) { logtrap('erase', r, p); return r; },
   enumerate: function (o) {
     logtrap('enumerate', o);
     var ps = [];
     for (p in o) { ps.push(p) }
     return ps;
-  }
+  },
+  erase: function (r, p) { logtrap('erase', r, p); return r; },
+  exist: function (o, p) { logtrap('exist', o, p); return p in o; }
 };

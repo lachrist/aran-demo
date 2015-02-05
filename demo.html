@@ -56,7 +56,6 @@
     </style>
     <script src="bundle.js"></script>
     <script>
-      if (!window.Proxy) { alert("Proxies (http://soft.vub.ac.be/~tvcutsem/proxies/) are required for aran to work...") }
       window.onload = function () {
         // Fetch elements
         var select = document.getElementById("select")
@@ -81,11 +80,9 @@
         master.value = window.masters.Empty
         // Initialize
         init.onclick = function () {
+          var sandbox, hooks, traps
           try { eval(master.value) } catch (e) { return alert("Error in master: "+e) }
-          if (typeof sandbox === "undefined") { return alert("Sandbox is not defined.") }
-          if (typeof hooks === "undefined") { return alert("Hooks are not defined.") }
-          if (typeof traps === "undefined") { return alert("Traps are not defined.") }
-          try { var analyze = window.Aran(sandbox, hooks, traps) } catch (e) { return alert("Aran internal error: "+e) }
+          try { var analyze = window.Aran(sandbox, hooks, traps) } catch (e) { alert("Aran internal error: "+e); throw e }
           run.disabled = false
           run.onclick = function () {
             window.compiled = ""

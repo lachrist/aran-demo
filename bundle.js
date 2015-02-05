@@ -1,1333 +1,58 @@
 window.masters = {};
-window.masters.Logger = "var sandbox = window;\n\nfunction log (msg) { console.log(msg) }\n\nvar hooks = new Proxy({}, {\n  has: function () { return true },\n  get: function (_, type) {\n    return function () {\n      var msg = 'hooks.'+type;\n      for (var i=0; i<arguments.length; i++) { msg = msg+' '+arguments[i] }\n      log(msg)\n    }\n  }\n})\n\nfunction logtrap (name) {\n  var msg = 'traps.'+name\n  for (var i=1; i<arguments.length; i++) { msg = msg+' '+arguments[i] }\n  log(msg)\n}\n\nvar traps = {\n  primitive: function (x) { logtrap('primitive', x); return x; },\n  object: function (x) { logtrap('object', x); return x; },\n  array: function (x) { logtrap('array', x); return x; },\n  function: function (x) { logtrap('function', x); return x; },\n  regexp: function (x) { logtrap('regexp', x); return x; },\n  booleanize: function (x) { logtrap('booleanize', x); return x; },\n  stringify: function (x) { logtrap('stringify', x); return x; },\n  throw: function (x) { logtrap('throw', x); return x; },\n  catch: function (x) { logtrap('catch', x); return x; },\n  unary: function (op, x) { logtrap('unary', op, x); return eval(op+' x'); },\n  binary: function (op, x1, x2) { logtrap('binary', op, x1, x2); return eval('x1 '+op+' x2'); },\n  apply: function (f, o, xs) { logtrap('apply', f, o, xs); return f.apply(o, xs); },\n  new: function (f, xs) {\n    logtrap('new', f, xs);\n    var o = Object.create(f.prototype);\n    var x = f.apply(o, xs);\n    if (typeof x === 'object' && x !== null) { return x }\n    return o;\n  },\n  get: function (o, p) { logtrap('get', o, p); return o[p]; },\n  set: function (o, p, v) { logtrap('set', o, p, v); return o[p]=v; },\n  delete: function (o, p) { logtrap('delete', o, p); return delete o[p]; },\n  erase: function (r, p) { logtrap('erase', r, p); return r; },\n  enumerate: function (o) {\n    logtrap('enumerate', o);\n    var ps = [];\n    for (p in o) { ps.push(p) }\n    return ps;\n  }\n};\n";
-window.masters.Empty = "var sandbox = window;\nvar hooks = {};\nvar traps = {};";
+window.masters.Logger = "var sandbox = window;\n\nfunction log (msg) { console.log(msg) }\n\nvar hooks = new Proxy({}, {\n  has: function () { return true },\n  get: function (_, type) {\n    return function () {\n      var msg = 'hooks.'+type;\n      for (var i=0; i<arguments.length; i++) { msg = msg+' '+arguments[i] }\n      log(msg)\n    }\n  }\n})\n\nfunction logtrap (name) {\n  var msg = 'traps.'+name\n  for (var i=1; i<arguments.length; i++) { msg = msg+' '+arguments[i] }\n  log(msg)\n}\n\nvar traps = {\n  primitive: function (x) { logtrap('primitive', x); return x; },\n  object: function (x) { logtrap('object', x); return x; },\n  array: function (x) { logtrap('array', x); return x; },\n  arguments: function (x) { logtrap('arguments', x); return x; }\n  function: function (x) { logtrap('function', x); return x; },\n  regexp: function (x) { logtrap('regexp', x); return x; },\n  booleanize: function (x) { logtrap('booleanize', x); return x; },\n  stringify: function (x) { logtrap('stringify', x); return x; },\n  throw: function (x) { logtrap('throw', x); return x; },\n  catch: function (x) { logtrap('catch', x); return x; },\n  unary: function (op, x) { logtrap('unary', op, x); return eval(op+' x'); },\n  binary: function (op, x1, x2) { logtrap('binary', op, x1, x2); return eval('x1 '+op+' x2'); },\n  apply: function (f, o, xs) { logtrap('apply', f, o, xs); return f.apply(o, xs); },\n  new: function (f, xs) {\n    logtrap('new', f, xs);\n    var o = Object.create(f.prototype);\n    var x = f.apply(o, xs);\n    if (typeof x === 'object' && x !== null) { return x }\n    return o;\n  },\n  get: function (o, p) { logtrap('get', o, p); return o[p]; },\n  set: function (o, p, v) { logtrap('set', o, p, v); return o[p]=v; },\n  delete: function (o, p) { logtrap('delete', o, p); return delete o[p]; },\n  enumerate: function (o) {\n    logtrap('enumerate', o);\n    var ps = [];\n    for (p in o) { ps.push(p) }\n    return ps;\n  },\n  erase: function (r, p) { logtrap('erase', r, p); return r; },\n  exist: function (o, p) { logtrap('exist', o, p); return p in o; }\n};\n";
+window.masters.Empty = "var sandbox = {};\nvar hooks = {};\nvar traps = {};";
 (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
 
 window.Aran = require('Aran')
 
-},{"Aran":2}],2:[function(require,module,exports){
+},{"Aran":3}],2:[function(require,module,exports){
+
+function error (blame, message, arguments) {
+  var args = []
+  for (var i=1; i<arguments.length; i++) { args.push(arguments[i]) }
+  var error = new Error(message)
+  error.blame = blame
+  error.data = args
+  throw error
+}
+
+exports.esprima = function (message) { error("esprima", message, arguments) }
+
+exports.internal = function (message) { error("internal", message, arguments) }
+
+exports.external = function (message) { error("external", message, arguments) }
+
+},{}],3:[function(require,module,exports){
 (function (global){
 
-var Escodegen = require("escodegen")
-var Esprima = require("esprima")
-
-var Stack = require("./stack.js")
-var Compile = require("./compile.js")
-var Proxy = require("./proxy.js")
+var Stack = require("./runtime/stack.js")
+var Compile = require("./runtime/compile.js")
+var Proxy = require("./runtime/proxy.js")
 
 module.exports = function (sandbox, hooks, traps) {
 
   var aran = {sandbox:sandbox, hooks:hooks, traps:traps, undefined:undefined}
   if (typeof window !== "undefined") { aran.global = window }
   else if (typeof global !== "undefined") { aran.global = global }
-  else { throw new Error("Could not find the global object") }
+  else { Error.external("Could not find the global object") }
 
   Stack(aran)
-  Compile(aran)
   Proxy(aran)
+  Compile(aran)
 
   return function (code) {
-    aran.compiled = aran.compile(code)
-    if (!aran.eval) { aran.eval = sandbox.eval }
-    if (aran.global.compiled !== undefined) { aran.global.compiled = aran.compiled }
+    var compiled = aran.compile(code)
+    if (!aran.eval) { aran.eval = sandbox ? ((aran.traps&&aran.traps.get) ? aran.traps.get(sandbox, "eval") : sandbox.eval) : aran.global.eval }
+    if (aran.global.compiled !== undefined) { aran.global.compiled = compiled }
+    if (sandbox) { compiled = "with (aran.proxy) { "+compiled+" }" }
     aran.mark()
-    try { var result = eval("with (aran.proxy) { "+aran.compiled+" }") } finally { aran.unmark() }
-    return result
+    try { return eval(compiled) } finally { aran.unmark() }
   }
 
 }
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./compile.js":3,"./proxy.js":30,"./stack.js":34,"escodegen":6,"esprima":23}],3:[function(require,module,exports){
-
-var Esprima = require("esprima")
-var Esvalid = require("esvalid")
-var Escodegen = require("escodegen")
-
-var Util = require("./util.js")
-var Error = require("./error.js")
-var Miley = require("./miley.js")
-var Ptah = require("./ptah.js")
-var Pstack = require("./pstack.js")
-var Ptrap = require("./ptrap.js")
-var Switch = require("./switch.js")
-
-module.exports = function (aran) {
-
-  var ptrap = Ptrap(aran)
-
-  aran.compile = function (code) {
-    var ast = Esprima.parse(code)
-    var hook = phook("Program", [Ptah.literal(ast.body.length)])
-    Util.prepend(Util.flaten(ast.body.map(visit_stmt)), ast.body)
-    if (aran.hooks.program) { ast.body.unshift(Ptah.exprstmt(hook)) }
-    var errors = Esvalid.errors(ast)
-    if (errors.length > 0) { Error("Aran internal compilation error", errors.map(function (e) { return e.message }), errors) }
-    return Escodegen.generate(ast)
-  }
-
-  /////////////
-  // Helpers //
-  /////////////
-
-  function escape (s) {
-    if (/^\$*aran$/.test(s)) { return "$"+s }
-    return s
-  }
-
-  var esc_args = escape("arguments")
-
-  function esc_decl (decl) {
-    decl.id.name = escape(decl.id.name)
-  }
-
-  function compute_member (node) {
-    if (!node.computed) {
-      node.computed = true
-      node.property = ptrap.primitive(Ptah.literal(node.property.name))
-    }
-  }
-
-  function pshadow (name) {
-    return Ptah.member(Ptah.identifier("aran"), name)
-  }
-
-  function phook (name, args) {
-    return Ptah.call(Ptah.member(pshadow("hooks"), name), args)
-  }
-
-  function visit_fct (node) {
-    var args = false
-    node.params.forEach(function (id) {
-      if (id.name === "arguments") { args = true }
-      id.name = escape(id.name)
-    })
-    if (!args) {
-      node.body.body.unshift(Ptah.exprstmt(Ptah.assignment(Ptah.identifier(esc_args), ptrap.arguments(Ptah.identifier(esc_args)))))
-    }
-    return ptrap.function(node)
-  }
-
-  //////////////
-  // Visitors //
-  //////////////
-
-  function visit_expr (node) {
-    console.log(node.type)
-    var pushed = Switch.push(node.type)
-    var parts = Miley(node)
-    if (aran.hooks[node.type]) {
-      var copy = Util.extract(node)
-      node.type = "SequenceExpression"
-      node.expressions = [phook(copy.type, parts.infos.map(Ptah.nodify)), copy]
-      node = copy
-    }
-    var body = node.type === "FunctionExpression" ? node.body.body : null
-    if (!exprs[node.type]) { Error("Unsupported expression type", node) }
-    Util.inject(exprs[node.type](node), node)
-    parts.exprs.forEach(visit_expr)
-    if (body) {
-      var decls = Util.flaten(parts.stmts.map(visit_stmt))
-      Util.prepend(decls, body)
-    } else if (parts.stmts.length > 0) {
-      Error("Expressions that are not FunctionExpression should not contain any statement", node)
-    }
-    if (pushed) { Switch.pop() }
-  }
-
-  function visit_stmt (node) {
-    console.log(node.type)
-    var pushed = Switch.push(node.type)
-    var parts = Miley(node)
-    if (aran.hooks[node.type]) {
-      var copy = Util.extract(node)
-      node.type = "BlockStatement"
-      node.body = [Ptah.exprstmt(phook(copy.type, parts.infos.map(Ptah.nodify))), copy]
-      node = copy
-    }
-    var body = node.type === "FunctionDeclaration" ? node.body.body : null
-    if (!stmts[node.type]) { Error("Unsupported statement type", node) }
-    stmts[node.type](node)
-    parts.exprs.forEach(visit_expr)
-    var decls = Util.flaten(parts.stmts.map(visit_stmt))
-    if (!body) { return decls }
-    Util.prepend(decls, body)
-    copy = Util.extract(node)
-    node.type = "EmptyStatement"
-    if (pushed) { Switch.pop() }
-    return [copy]
-  }
-
-  /////////////////////////
-  // Statement Compilers //
-  /////////////////////////
-
-  var stmts = {}
-
-  stmts.EmptyStatement = Util.nil
-
-  stmts.BlockStatement = Util.nil
-
-  stmts.ExpressionStatement = Util.nil
-
-  // if (EXPR) STMT             >>> if (aran.traps.booleanize(EXPR, "if")) STMT
-  // if (EXPR) STMT1 else STMT2 >>> if (aran.traps.booleanize(EXPR, "if-else")) STMT1 else STMT2
-  stmts.IfStatement = function (node) {
-    node.test = ptrap.booleanize(node.test, node.alternate?"if-else":"if")
-  }
-
-  stmts.LabeledStatement = function (node) {
-    node.label.name = "$"+node.label.name
-  }
-
-  stmts.BreakStatement = function (node) {
-    if (node.label) { return Switch.escape(node.label) }
-    node.label = Switch.get()
-  }
-
-  stmts.ContinueStatement = function (node) {
-    if (node.label) { return Switch.escape(node.label) }
-  }
-
-  // with (EXPR) STMT >>> with (aran.with(EXPR)) STMT
-  stmts.WithStatement = function (node) {
-    node.object = Ptah.call(pshadow("with"), [node.object])
-  }
-
-  // switch (EXPR1) { case EXPR2: STMT1 break; default: STMT2 } >>> try {
-  //   switchX: {
-  //     aran.push(EXPR1);
-  //     if (aran.traps.binary("===", aran.get(), EXPR2) { STMT1 break switchX; }
-  //     STMT2
-  //   }
-  // } finally {
-  //   aran.pop()
-  // }
-  // etc...
-  stmts.SwitchStatement = function (node) {
-    var stmts = Util.flaten(node.cases.map(function (c) {
-      if (!c.test) { return c.consequent }
-      return [Ptah.if(ptrap.binary("===", Pstack.get(), c.test), Ptah.block(c.consequent))]
-    }))
-    stmts.unshift(Ptah.exprstmt(Pstack.push(node.discriminant)))
-    Util.inject(Ptah.try([Ptah.label(Switch.get(), Ptah.block(stmts))], null, null, [Ptah.exprstmt(Pstack.pop())]), node)
-  }
-
-  stmts.ReturnStatement = Util.nil
-
-  // throw EXPR; >>> throw aran.traps.throw(EXPR);
-  stmts.ThrowStatement = function (node) {
-    node.argument = ptrap.throw(node.argument)
-  }
-
-  // try {} catch (ID) {} finally {} >>> try { aran.mark() } catch (#ID) { #ID = aran.traps.catch(#ID) } finally { aran.ummark() }
-  // etc...
-  stmts.TryStatement = function (node) {
-    node.block.body.unshift(Ptah.exprstmt(Pstack.mark()))
-    if (node.handler) {
-      var name = escape(node.handler.param.name)
-      node.handler.param.name = name
-      node.handler.body.body.unshift(Ptah.exprstmt(Ptah.assignment(Ptah.identifier(name), ptrap.catch(Ptah.identifier(name)))))
-    }
-    if (!node.finalizer) { node.finalizer = Ptah.block([]) }
-    node.finalizer.body.unshift(Ptah.exprstmt(Pstack.unmark()))
-  }
-
-  // while (EXPR) STMT >>> while (aran.traps.booleanize(EXPR, "while")) STMT
-  stmts.WhileStatement = function (node) {
-    node.test = ptrap.booleanize(node.test, "while")
-  }
-
-  // do STMT while (EXPR) >>> do STMT while (aran.traps.booleanize(EXPR, "do-while"))
-  stmts.DoWhileStatement = function (node) {
-    node.test = ptrap.booleanize(node.test, "do-while")
-  }
-
-  // for (EXPR1 ; EXPR2 ; EXPR3) STMT >>> for (EXPR1 ; aran.traps.booleanize(EXPR2, "for") ; EXPR3) STMT
-  // for (var ID1,ID2; EXPR2; EXPR3) STMT >>> for (var #ID1,#ID2; EXPR2; EXPR3) STMT
-  // etc...
-  stmts.ForStatement = function (node) {
-    if (node.test) { node.test = ptrap.booleanize(node.test, "for") }
-    if (node.init && node.init.type === "VariableDeclaration") {
-      node.init.declarations.forEach(esc_decl)
-    }
-  }
-
-  // for (var ID=EXPR1 in EXPR2) STMT >>> {
-  //   var #ID=EXPR1;
-  //   aran.push3(aran.traps.enumerate(EXPR2));
-  //   try {
-  //     for (aran.push(0); aran.get()<aran.get3().length; aran.push(aran.get()+1)) {
-  //       #ID = aran.get3()[aran.get()];
-  //       STMT
-  //     }
-  //   } finally {
-  //     aran.pop();
-  //     aran.pop3();
-  //   }
-  // }
-  //
-  // for (EXPR1[EXPR2] in EXPR3) STMT >>> {
-  //   aran.push1(EXPR1);
-  //   aran.push2(EXPR2);
-  //   aran.push3(aran.traps.enumerate(EXPR3));
-  //   try {
-  //     for (aran.push(0); aran.get()<aran.get3().length; aran.push(aran.get()+1)) {
-  //       aran.set(aran.get1(), aran.get2(), aran.get3()[aran.get()]);
-  //       STMT
-  //     }
-  //   } finally {
-  //     aran.pop();
-  //     aran.pop1();
-  //     aran.pop2();
-  //     aran.pop3();
-  //   }
-  // }
-  //
-  // etc...
-  stmts.ForInStatement = function (node) {
-    if (!aran.traps.enumerate) { return node }
-    function for_stmt (expr) {
-      return Ptah.for(
-        Pstack.push(Ptah.literal(0)),
-        Ptah.binary("<", Pstack.get(), Ptah.member(Pstack.get3(), "length"))),
-        Pstack.push(Pstack.binary("+", Pstack.get(), Pstack.literal(1))),
-        Ptah.block([Ptah.exprstmt(expr), node.body])
-    }
-    if (node.left.type === "MemberExpression") {
-      compute_member(node.left)
-      var stmts = []
-      stmts.push(Pstack.push1(node.left.object))
-      stmts.push(Pstack.push2(node.left.property))
-      stmts.push(Pstack.push3(ptrap.enumerate(node.right)))
-      var set = ptrap.set(Pstack.get1(), Pstack.get2(), Ptah.member(Pstack.get3(), Pstack.get()))
-      var finally_stmts = [Pstack.pop(), Pstack.pop1(), Pstack.pop2(), Pstack.pop3()]
-      stmts.push(Ptah.try([for_stmt(set)], null, null, finally_stmts))
-      return Ptah.block(stmts)
-    }
-    var stmts = []
-    if (node.left.type === "VariableDeclaration") {
-      if (node.left.declarations.length !== 1) { Error("Not unique variable declaration in a for-in statement", node) }
-      var name = node.left.declarations[0].id.name
-      stmts.push(node.left)
-    } else if (node.left.type === "Identifier") {
-      var name = node.left.name
-    } else {
-      Error("Wrong left-hand side in for-in statement", node)
-    }
-    stmts.push(Pstack.push3(ptrap.enumerate(node.right)))
-    var ass = Ptah.assignment(Ptah.identifier(name), Ptah.member(Pstack.get3(), Pstack.get1()))
-    var finally_stmts = [Pstack.pop(), Pstack.pop3()]
-    stmts.push(Ptah.try([for_stmt(ass)], null, null, finally_stmts))
-    return Ptah.block(stmts)
-  }
-
-  // function ID (ID1,ID2) {} >>> var #ID = aran.traps.function(function (#ID1, #ID2) {})
-  // etc...
-  stmts.FunctionDeclaration = function (node) {
-    node.type = "FunctionExpression"
-    Util.inject(Ptah.declaration(escape(node.id.name), visit_fct(node)), node)
-  }
-
-  // var ID1=EXPR1, ID2=EXPR2 >>> var #ID1=EXPR1, #ID2=EXPR2
-  // etc...
-  stmts.VariableDeclaration = function (node) {
-    node.declarations.forEach(esc_decl)
-  }
-
-  //////////////////////////
-  // Expression Compilers //
-  //////////////////////////
-
-  var exprs = {}
-
-  // this >>> this===aran.global ? aran.sandbox : this
-  exprs.ThisExpression = function (node) {
-    return Ptah.conditional(Ptah.binary("===", node, pshadow("global")), pshadow("sandbox"), node)
-  }
-
-  // [EXPR1,,EXPR2] >>> aran.traps.array([EXPR1,,EXPR2])
-  // etc...
-  exprs.ArrayExpression = ptrap.array
-
-  // {x:EXPR} >>> aran.traps.object({x:EXPR})
-  // etc...
-  exprs.ObjectExpression = ptrap.object
-
-  // function (ID) {} >>> aran.traps.function(function (#ID) { arguments=aran.traps.arguments(arguments) })
-  exprs.FunctionExpression = visit_fct
-
-  exprs.SequenceExpression = Util.identity
-  
-  // void EXPR           >>> aran.traps.unary("void", EXPR)
-  // delete EXPR1[EXPR2] >>> aran.traps.delete(EXPR1, EXPR2)
-  // delete ID           >>> aran.traps.erase("ID", delete ID)
-  // typeof ID           >>> aran.traps.unary("typeof", (function () { try { return #ID } catch (e) { return undefined } } ())
-  // typeof EXPR         >>> aran.traps.unary("typeof", EXPR)
-  // etc...
-  exprs.UnaryExpression = function (node) {
-    if (node.operator === "delete" && node.argument.type === "MemberExpression") {
-      compute_member(node.argument)
-      return ptrap.delete(node.argument.object, node.argument.property)
-    }
-    if (node.operator === "delete" && node.arguments.type === "Identifier") {
-      return ptrap.erase(node.argument.name, node)
-    }
-    if (node.operator === "typeof" && node.argument.type === "Identifier") {
-      var stmts1 = [Ptah.return(Ptah.identifier(escape(node.argument.name)))]
-      var stmts2 = [Ptah.return(pshadow("undefined"))]
-      return ptrap.unary("typeof", Ptah.call(Ptah.function([], [Ptah.try(stmts1, "e", stmts2)]), []))
-    }
-    return ptrap.unary(node.operator, node.argument)
-  }
-
-  // EXPR1 OP EXPR2 >>> aran.traps.binary("OP", EXPR1, EXPR2)
-  exprs.BinaryExpression = function (node) {
-    return ptrap.binary(node.operator, node.left, node.right)
-  }
-
-  // ID = <EXPR>                >>> #ID = <EXPR>
-  // ID OP= <EXPR>              >>> #ID = aran.traps.binary("OP", #ID, <EXPR>)
-  // <EXPR1>[<EXPR2>] = <EXPR3> >>> aran.traps.set(<EXPR1>, <EXPR2>, <EXPR3>)
-  // <EXPR1>[<EXPR2>] OP= <EXPR3> >>> aran.traps.set(aran.push1(EXPR1), aran.push2(EXPR2), aran.traps.binary("OP", aran.trap.get(aran.pop1(), aran.pop2()), EXPR3))
-  exprs.AssignmentExpression = function (node) {
-    if (node.left.type === "Identifier") {
-      node.left.name = escape(node.left.name)
-      if (node.operator === "=") { return node }
-    } else if (node.left.type === "MemberExpression") {
-      compute_member(node.left)
-      if (node.operator === "=") { return ptrap.set(node.left.object, node.left.property, node.right) }
-    } else {
-      Error("Wrong left-hand side in assignment expression", node)
-    }
-    var op = node.operator.replace("=", "")
-    if (node.left.type === "Identifier") {
-      node.operator = "="
-      node.right = ptrap.binary(op, Ptah.identifier(node.left.name), node.right)
-      return node
-    }
-    return ptrap.set(Pstack.push1(node.left.object), Pstack.push2(node.left.property), ptrap.binary(op, ptrap.get(Pstack.pop1(), Pstack.pop2()), node.right))
-  }
-
-  // ++ID           >>> $ID=aran.traps.binary("+", #ID, aran.traps.primitive(1))
-  // ID++           >>> (#ID = arent.traps.binary("+", aran.push(#ID), aran.traps.primitive(1), aran.pop())
-  // ++EXPR1[EXPR2] >>> aran.traps.set(
-  //   aran.push1(EXPR1),
-  //   aran.push2(EXPR2),
-  //   aran.traps.binary("+", aran.traps.get(aran.pop1(), aran.pop2()), aran.traps.primitive(1)))
-  // EXPR1[EXPR2]++ >>> (
-  //   aran.traps.set(
-  //     aran.push1(EXPR1),
-  //     aran.push2(EXPR2),
-  //     aran.traps.binary("+", aran.push3(aran.traps.get(aran.pop1(), aran.pop2())), aran.traps.primitive(1))),
-  //   aran.pop3()
-  // )
-  // etc...
-  exprs.UpdateExpression = function (node) {
-    var op = node.operator.substring(1)
-    function one () { return ptrap.primitive(Ptah.literal(1)) }
-    if (node.argument.type === "Identifier") {
-      function id () { return Ptah.identifier(escape(node.argument.name)) }
-      if (node.prefix) { return Ptah.assignment(id(), ptrap.binary(op, id(), one())) }
-      return Ptah.sequence([Ptah.assignment(id(), ptrap.binary(op, Pstack.push(id()), one())), Pstack.pop()])
-    }
-    if (!node.argument.type === "MemberExpression") { Error("Wrong left-hand side in update expression", node) }
-    compute_member(node.argument)
-    if (node.prefix) {
-      return ptrap.set(
-        Pstack.push1(node.argument.object),
-        Pstack.push2(node.argument.property),
-        ptrap.binary(op, ptrap.get(Pstack.pop1(), Pstack.pop2()), one())
-      )
-    }
-    return Ptah.sequence([
-      ptrap.set(
-        Pstack.push1(node.argument.object),
-        Pstack.push2(node.argument.property),
-        ptrap.binary(op, Pstack.push3(ptrap.get(Pstack.pop1(), Pstack.pop2())), one())),
-      Pstack.pop3()
-    ])
-  }
-
-  // EXPR1 || EXPR2 >>> (aran.traps.booleanize(aran.push(EXPR1)) ? aran.pop() : (aran.pop(),EXPR2))
-  // EXPR1 && EXPR2 >>> (aran.traps.booleanize(aran.push(EXPR1)) ? (aran.pop(),EXPR2) : aran.pop())
-  exprs.LogicalExpression = function (node) {
-    var test = ptrap.booleanize(Pstack.push(node.left), node.operator)
-    var seq = Ptah.sequence([Pstack.pop(), node.right])
-    if (node.operator === "||") { return Ptah.conditional(test, Pstack.pop(), seq) }
-    if (node.operator === "&&") { return Ptah.conditional(test, seq, Pstack.pop()) }
-    Error("Invalid logical operator", node)
-  }
-
-  // EXPR1 ? EXPR2 : EXPR3 >>> aran.traps.booleanize(EXPR1) ? EXPR2 : EXPR3
-  exprs.ConditionalExpression = function (node) {
-    node.test = ptrap.booleanize(node.test, '?:')
-    return node
-  }
-
-  // new EXPR(EXPR1, EXPR2) >>> aran.traps.new(EXPR, [EXPR1, EXPR2])
-  // etc...
-  exprs.NewExpression = function (node) {
-    return ptrap.new(node.callee, node.arguments)
-  }
-
-  // EXPR(EXPR1, EXPR2) >>> aran.traps.apply(EXPR, aran.undefined, [EXPR1, EXPR2])
-  // EXPR1[EXPR2](EXPR3, EXPR4) >>> aran.traps.apply(aran.traps.get(aran.push(EXPR1), EXPR2), aran.pop(), [EXPR1, EXPR2])
-  // eval(EXPR1, EXPR2) >>> (aran.push(eval)===aran.eval)
-  //   ? (aran.pop(), eval(aran.compile(aran.stringify(EXPR1, EXPR2))))
-  //   : aran.traps.apply(aran.pop(), aran.undefined, [EXPR1, EXPR2])
-  // etc...
-  exprs.CallExpression = function (node) {
-    if (node.callee.type === "Identifier" && node.callee.name === "eval") {
-      var test = Ptah.binary("===", Ptah.push(Ptah.identifier(escape(node.callee.name))), pshadow("eval"))
-      var cons = Ptah.sequence([
-        Pstack.pop(),
-        Ptah.call(
-          Ptah.identifier("eval"),
-          Ptah.call(pshadow("compile"), [ptrap.stringify(node.arguments)])
-        )
-      ])
-      if (aran.traps.apply) { var alt = ptrap.apply(Pstack.pop(), pshadow("undefined"), node.arguments) }
-      else { var alt = Ptah.call(Pstack.pop(), node.arguments) }
-      return Ptah.conditional(test, cons, alt)
-    }
-    if (!aran.traps.apply) { return node }
-    if (node.callee.type !== "MemberExpression") { return ptrap.apply(node.callee, pshadow("undefined"), node.arguments) }
-    compute_member(node.callee)
-    return ptrap.apply(ptrap.get(Pstack.push(node.callee.object), node.callee.property), Pstack.pop(), node.arguments)
-  }
-
-  // EXPR.ID      >>> aran.traps.get(EXPR, "ID")
-  // EXPR1[EXPR2] >>> aran.traps.get(EXPR1, EXPR2)
-  exprs.MemberExpression = function (node) {
-    compute_member(node)
-    return ptrap.get(node.object, node.property)
-  }
-
-  // ID >>> #ID
-  exprs.Identifier = function (node) {
-    node.name = escape(node.name)
-    return node
-  }
-
-  // REGEXP >>> aran.traps.regexp(REGEXP)
-  // LIT >>> aran.traps.primitive(LIT)
-  exprs.Literal = function (node) {
-    if (node.regex) { return ptrap.regexp(node) }
-    return ptrap.primitive(node)
-  }
-
-}
-
-},{"./error.js":4,"./miley.js":5,"./pstack.js":31,"./ptah.js":32,"./ptrap.js":33,"./switch.js":35,"./util.js":36,"escodegen":6,"esprima":23,"esvalid":24}],4:[function(require,module,exports){
-
-module.exports = function () {
-  var msg = ""
-  for (var i=0; i<arguments.length; i++) {
-    try {
-      msg = msg + JSON.stringify(arguments[i]) + "\n"
-    } catch (e) {
-      msg = msg + arguments[i]
-    }
-  }
-  throw new Error(msg)
-}
-},{}],5:[function(require,module,exports){
-
-var Error = require("./error.js")
-
-/////////////
-// Helpers //
-/////////////
-
-// Helper for left-hand-side expression used in:
-//   ForInStatement
-//   AssignmentExpression
-//   UpdateExpression
-//   UnaryExpression (delete)
-//
-// [is_identifier, name]
-//
-// ID             >>> ["ID", null]
-// <expr>.ID      >>> [null, "ID"]
-// <expr>[<expr>] >>> [null, null]
-function left (node, exprs) {
-  if (node.type === "Identifier") { return [node.name, null] }
-  if (node.type !== "MemberExpression") { Error("Invalid left-hand side", node) }
-  exprs.push(node.object)
-  if (node.computed) {
-    exprs.push(node.property)
-    return [null, null]
-  }
-  if (node.property.type === "Identifier") { return [null, node.property.name] }
-  Error("Member expression uncomputed without identifier", node)
-}
-
-// Helper for variable declarations used in:
-//   VariableDeclaration
-//   ForStatement
-//
-// [[name,initialized]]
-//
-// var ID;              >>> [["ID",false]]
-// var ID=<expr>;       >>> [["ID",true]]
-// var ID1, ID2=<expr>; >>> [["ID1",false],["ID2",true]]
-// etc...
-function declaration (node, exprs) {
-  var declarations = []
-  node.declarations.forEach(function (d) {
-    declarations.push([d.id.name,Boolean(d.init)])
-    if (d.init) { exprs.push(d.init) }
-  })
-  return declarations
-}
-
-/////////////
-// Exports //
-/////////////
-
-var miley = {}
-module.exports = function (node) {
-  if (!miley[node.type]) { Error("Unsopported node type", node) }
-  return miley[node.type](node)
-}
-
-// interface Program <: Node {
-//   type: "Program";
-//   body: [ Statement ];
-// }
-// 
-// [program_length]
-//
-//              >>> []
-// <stmt>       >>> [1]
-// <stmt><stmt> >>> [2]
-miley.Program = function (node) {
-  return { stmts:node.body.slice(), exprs:[], infos:[node.body.length] }
-}
-
-
-// interface EmptyStatement <: Statement {
-//   type: "EmptyStatement";
-// }
-//
-// []
-//
-// ; >>> []
-miley.EmptyStatement = function (node) {
-  return { stmts:[], exprs:[], infos:[] }
-}
-
-
-// interface BlockStatement <: Statement {
-//   type: "BlockStatement";
-//   body: [ Statement ];
-// }
-//
-// [body_length]
-//
-// {}             >>> [0]
-// {<stmt>}       >>> [1]
-// {<stmt><stmt>} >>> [2]
-// etc...
-miley.BlockStatement = function (node) {
-  return { stmts:node.body.slice(), exprs:[], infos:[node.body.length] }
-}
-
-
-// interface ExpressionStatement <: Statement {
-//   type: "ExpressionStatement";
-//   expression: Expression;
-// }
-//
-// []
-//
-// <expr>; >>> []
-miley.ExpressionStatement = function (node) {
-  return { stmts:[], exprs:[node.expression], infos:[] }
-}
-
-
-// interface IfStatement <: Statement {
-//   type: "IfStatement";
-//   test: Expression;
-//   consequent: Statement;
-//   alternate: Statement | null;
-// }
-//
-// [has_alternate]
-//
-// if (<expr>) <stmt>             >>> [false]
-// if (<expr>) <stmt> else <stmt> >>> [true]
-miley.IfStatement = function (node) {
-  var stmts = [node.consequent]
-  var alt = Boolean(node.alternate)
-  if (alt) { stmts.push(node.alternate) }
-  return { stmts:stmts, exprs:[node.test], infos:[alt] }
-}
-
-
-// interface LabeledStatement <: Statement {
-//   type: "LabeledStatement";
-//   label: Identifier;
-//   body: Statement;
-// }
-//
-// [label]
-//
-// ID:<stmt> >>> ["ID"]
-miley.LabeledStatement = function (node) {
-  return { stmts:[node.body], exprs:[], infos:[node.label.name] }
-}
-
-
-// interface BreakStatement <: Statement {
-//   type: "BreakStatement";
-//   label: Identifier | null;
-// }
-//
-// [label]
-//
-// break;    >>> [null]
-// break ID; >>> ["ID"]
-miley.BreakStatement = function (node) {
-  return { stmts:[], exprs:[], infos:[node.label?node.label.name:null] }
-}
-
-
-// interface ContinueStatement <: Statement {
-//   type: "ContinueStatement";
-//   label: Identifier | null;
-// }
-//
-// [label]
-//
-// continue;    >>> [null]
-// continue ID; >>> ["ID"]
-miley.ContinueStatement = function (node) {
-  return { stmts:[], exprs:[], infos:[node.label?node.label.name:null] }
-}
-
-// interface WithStatement <: Statement {
-//   type: "WithStatement";
-//   object: Expression;
-//   body: Statement;
-// }
-//
-// []
-//
-// with (<expr>) <stmt> >>> []
-miley.WithStatement = function (node) {
-  return { stmts:[node.body], exprs:[node.object], infos:[] }
-}
-
-
-// interface SwitchStatement <: Statement {
-//   type: "SwitchStatement";
-//   discriminant: Expression;
-//   cases: [ SwitchCase ];
-//  *lexical: boolean;
-// }
-// interface SwitchCase <: Node {
-//   type: "SwitchCase";
-//   test: Expression | null;
-//   consequent: [ Statement ];
-// }
-//
-// [[has_test, consequent_lengths]]
-//
-// TODO update examples
-// switch (<expr>) {}                                 >>> [[], []]
-// switch (<expr>) {case<expr>:}                      >>> [[true], [0]]
-// switch (<expr>) {case<expr>:<stmt>}                >>> [[true], [1]]
-// switch (<expr>) {case<expr>:<stmt><stmt>}          >>> [[true], [2]]
-// switch (<expr>) {case<expr>: case<expr>:<stmt>}    >>> [[true,true], [0,1]]
-// switch (<expr>) {default:}                         >>> [[false], [0]]
-// switch (<expr>) {default:<stmt>}                   >>> [[false], [1]]
-// switch (<expr>) {case<expr>: case<expr>: default:} >>> [[true,true,false], [0,0,0]]
-// etc...
-miley.SwitchStatement = function (node) {
-  var stmts = []
-  var exprs = [node.discriminant]
-  var cases = []
-  node.cases.forEach(function (c) {
-    stmts = stmts.concat(c.consequent)
-    if (c.test) { exprs.push(c.test) }
-    cases.push([Boolean(c.test), c.consequent.length])
-  })
-  return { stmts:stmts, exprs:exprs, infos:[cases] }
-}
-
-
-// interface ReturnStatement <: Statement {
-//   type: "ReturnStatement";
-//   argument: Expression | null;
-// }
-//
-// [has_argument]
-//
-// return;        >>> [false]
-// return <expr>; >>> [true]
-miley.ReturnStatement = function (node) {
-  var exprs = node.argument?[node.argument]:[]
-  return { stmts:[], exprs:exprs, infos:[Boolean(node.argument)] }
-}
-
-
-// interface ThrowStatement <: Statement {
-//   type: "ThrowStatement";
-//   argument: Expression;
-// }
-//
-// []
-//
-// throw <expr>; >>> []
-miley.ThrowStatement = function (node) {
-  return { stmts:[], exprs:[node.argument], infos:[] }
-}
-
-
-// interface TryStatement <: Statement {
-//   type: "TryStatement";
-//   block: BlockStatement;
-//   handler: CatchClause | null;
-//  *guardedHandlers: [ CatchClause ];
-//   finalizer: BlockStatement | null;
-// }
-// interface CatchClause <: Node {
-//   type: "CatchClause";
-//   param: Pattern;
-//  *guard: Expression | null;
-//   body: BlockStatement;
-// }
-//
-// [catch_parameter, try_length, catch_length, finally_length]
-//
-// try {} catch (ID) {}                              >>> ["ID", 0, 0, null]
-// try {} finally {}                                 >>> [null, 0, null, 0]
-// try {<stmt>} catch (ID) {}                        >>> ["ID", 1, 0, null]
-// try {<stmt><stmt>} catch (ID) {}                  >>> ["ID", 2, 0, null]
-// try {} catch (ID) {<stmt>}                        >>> ["ID", 0, 1, null]
-// try {<stmt>} catch (ID) {<stmt>} finally {<stmt>} >>> ["ID", 1, 1, 1]
-// etc..
-miley.TryStatement = function (node) {
-  var stmts = node.block.body.slice()
-  var infos = [stmts.length]
-  if (node.handler) {
-    infos.push(node.handler.param.name)
-    infos.push(node.handler.body.length)
-    stmts = stmts.concat(node.handler.body)
-  } else {
-    infos.push(null)
-    infos.push(null)
-  }
-  if (node.finalizer) {
-    infos.push(node.finalizer.body.length)
-    stmts = stmts.concat(node.finalizer.body)
-  } else {
-    infos.push(null)
-  }
-  return { stmts:stmts, exprs:[], infos:infos }
-}
-
-
-// interface WhileStatement <: Statement {
-//   type: "WhileStatement";
-//   test: Expression;
-//   body: Statement;
-// }
-//
-// []
-//
-// while (<expr>) <stmt> >>> []
-miley.WhileStatement = function (node) {
-  return { stmts:[node.body], exprs:[node.test], infos:[] }
-}
-
-
-// interface DoWhileStatement <: Statement {
-//   type: "DoWhileStatement";
-//   body: Statement;
-//   test: Expression;
-// }
-//
-// []
-//
-// do <stmt> while (<expr>) >>> []
-miley.DoWhileStatement = function (node) {
-  return { stmts:[node.body], exprs:[node.test], infos:[] }
-}
-
-
-// interface ForStatement <: Statement {
-//   type: "ForStatement";
-//   init: VariableDeclaration | Expression | null;
-//   test: Expression | null;
-//   update: Expression | null;
-//   body: Statement;
-// }
-//
-// [has_init, has_test, has_update, declarations]
-//
-// for (<expr>;<expr>;<expr>) <stmt> >>> [true, true, true]
-// for (;;) <stmt>                   >>> [false, false, false]
-// for (;<expr>;)                    >>> [false, true, false]
-// for (var ID=<expr>;;)             >>> [true, false, false, [["ID",true]]]
-// for (var ID1=<expr>, ID2;;)       >>> [true, false, false, [["ID1",true],["ID2",false]]]
-miley.ForStatement = function (node) {
-  var exprs = []
-  var infos = [node.init, node.test, node.update].map(Boolean)
-  if (node.init) {
-    if (node.init.type !== "VariableDeclaration") { exprs.push(node.init) }
-    else { infos = infos.push(declaration(node.init, exprs)) }
-  }
-  if (node.test) { exprs.push(node.test) }
-  if (node.update) { exprs.push(node.update) }
-  return { stmts:[node.body], exprs:exprs, infos:infos }
-}
-
-
-// interface ForInStatement <: Statement {
-//   type: "ForInStatement";
-//   left: VariableDeclaration | Expression;
-//   right: Expression;
-//   body: Statement;
-//   each: boolean;
-// }
-//
-// [maybe_declaration, maybe_identifier, maybe_property]
-//
-// for (var ID in <expr>) <stmt>          >>> [["ID", false], null, null]
-// for (var ID=<expr> in <expr>) <stmt>   >>> [["ID",true], null, null]
-// for (ID in <expr>) <stmt>              >>> [null, "ID", null]
-// for (<expr>.ID in <expr>) <stmt>       >>> [null, null, "ID"]
-// for (<expr>[<expr>] in <expr>) <stmt>  >>> [null, null, null]
-miley.ForInStatement = function (node) {
-  var exprs = [node.right]
-  if (node.left.type === "VariableDeclaration") {
-    if (node.left.declarations.length !== 1) { Error("Not unique variable declaration in for-in statement", node) }
-    var init = node.left.declarations[0].init
-    var infos = [[node.left.declarations[0].id.name, Boolean(init)], null, null]
-    if (init) { exprs.unshift(init) }
-  } else if (node.left.type === "Identifier") {
-    var infos = [null, node.left.type.name, null]
-  } else if (node.left.type === "MemberExpression") {
-    var infos = [null, null, node.left.computed?null:node.left.property.name]
-    exprs.push(node.left.object)
-    if (node.left.computed) { exprs.push(node.left.property) }
-  } else {
-    Error("Wrong left-hand side in for-in statement", node)
-  }
-  return { stmts:[node.body], exprs:exprs, infos:infos }
-}
-
-
-// interface FunctionDeclaration <: Function, Declaration {
-//   type: "FunctionDeclaration";
-//   id: Identifier;
-//   params: [ Pattern ];
-//  *defaults: [ Expression ];
-//  *rest: Identifier | null;
-//   body: BlockStatement | Expression;
-//  *generator: boolean;
-//  *expression: boolean;
-// }
-//
-// [name, parameters, body_length]
-//
-// function ID () {}              >>> ["ID", 0, []]
-// function ID () {<stmt>}        >>> ["ID", 1, []]
-// function ID () {<stmt> <stmt>} >>> ["ID", 2, []]
-// function ID0 (ID1) {}          >>> ["ID0", 0, ["ID1"]]
-// function ID0 (ID1, ID2) {}     >>> ["ID0", 0, ["ID1", "ID2"]]
-// etc...
-miley.FunctionDeclaration = function (node) {
-  return {
-    stmts:node.body.body.slice(),
-    exprs:[],
-    infos:[
-      node.id.name,
-      node.params.map(function (p) { return p.name }),
-      node.body.body.length
-    ]
-  }
-}
-
-
-// interface VariableDeclaration <: Declaration {
-//   type: "VariableDeclaration";
-//   declarations: [ VariableDeclarator ];
-//  *kind: "var" | "let" | "const";
-// }
-// interface VariableDeclarator <: Node {
-//   type: "VariableDeclarator";
-//   id: Pattern;
-//   init: Expression | null;
-// }
-//
-// [[initialized,name]]
-//
-// var ID;              >>> [["ID", false]]
-// var ID=<expr>;       >>> [["ID", true]]
-// var ID1, ID2=<expr>; >>> [["ID1", false], ["ID2", true]]
-// etc...
-miley.VariableDeclaration = function (node) {
-  var exprs = []
-  return { stmts:[], exprs:exprs, infos:declaration(node, exprs) }
-}
-
-
-// interface ThisExpression <: Expression {
-//   type: "ThisExpression";
-// }
-//
-// []
-//
-// this >>> []
-miley.ThisExpression = function (node) {
-  return { stmts:[], exprs:[], infos:[] }
-}
-
-
-// interface ArrayExpression <: Expression {
-//   type: "ArrayExpression";
-//   elements: [ Expression | null ];
-// }
-//
-// [are_present]
-//
-// []              >>> [[]]
-// [<expr>]        >>> [[true]]
-// [<expr>,<expr>] >>> [[true, true]]
-// [<expr>,]       >>> [[true, false]]
-// [,,<expr>]      >>> [[false, false, true]]
-// etc...
-miley.ArrayExpression = function (node) {
-  var exprs = []
-  var are_present = []
-  node.elements.forEach(function (e) {
-    if (e) { exprs.push(e) }
-    are_present.push(Boolean(e))
-  })
-  return { stmts:[], exprs:exprs, infos:[are_present] }
-}
-
-
-// interface ObjectExpression <: Expression {
-//   type: "ObjectExpression";
-//   properties: [ Property ];
-// }
-// interface Property <: Node {
-//   type: "Property";
-//   key: Literal | Identifier;
-//   value: Expression;
-//   kind: "init" | "get" | "set";
-// }
-//
-//
-miley.ObjectExpression = function (node) {
-  var stmts = []
-  var exprs = []
-  var infos = node.properties.map(function (p) {
-    var info = [p.kind]
-    if (p.key.type === "Identifer") { infos.unshift(p.key.name) }
-    else { info.unshift(JSON.stringify(p.key.value)) }
-    if (p.kind !== "init") {
-      info.push(p.value.body.body.length)
-      stmts.push(p.value.body.body.slice())
-    } else {
-      info.push(null)
-      exprs.push(p.value)
-    }
-    return info
-  })
-  return { stmts:stmts, exprs:exprs, infos:infos }
-}
-
-
-// interface FunctionExpression <: Function, Expression {
-//   type: "FunctionExpression";
-//   id: Identifier | null;
-//   params: [ Pattern ];
-//  *defaults: [ Expression ];
-//  *rest: Identifier | null;
-//   body: BlockStatement | Expression;
-//  *generator: boolean;
-//  *expression: boolean;
-// }
-//
-// [name, parameters, body_length]
-//
-// function () {}               >>> [null, [], 0]
-// function ID () {}            >>> ["ID", [], 0]
-// function (ID1, ID2) {<stmt>} >>> [null, ["ID1", "ID2"], 1]
-// etc..
-miley.FunctionExpression = function (node) {
-  return {
-    stmts:node.body.body.slice(),
-    exprs:[],
-    infos:[
-      node.id?node.id.name:null,
-      node.params.map(function (p) { return p.name }),
-      node.body.body.length
-    ]
-  }
-}
-
-
-// interface SequenceExpression <: Expression {
-//   type: "SequenceExpression";
-//   expressions: [ Expression ];
-// }
-//
-// [expressions_length]
-//
-// ()               >>> [0]
-// (<expr>)         >>> [1]
-// (<expr>, <expr>) >>> [2]
-// etc...
-miley.SequenceExpression = function (node) {
-  return { stmts:[], exprs:node.expressions.slice(), infos:[node.expressions.length] }
-}
-
-
-// interface UnaryExpression <: Expression {
-//   type: "UnaryExpression";
-//   operator: UnaryOperator;
-//  !prefix: boolean;
-//   argument: Expression;
-// }
-// enum UnaryOperator {
-//   "-" | "+" | "!" | "~" | "typeof" | "void" | "delete"
-// }
-//
-// [operator, maybe_identifier, maybe_property]
-//
-// typeof ID             >>> ["typeof", "ID", null]
-// delete ID             >>> ["delete", "ID", null]
-// delete <expr>.ID      >>> ["delete", null, "ID"]
-// delete <expr>[<expr>] >>> ["delete", null, null]
-// delete <expr>         >>> ["delete"]
-// OP <expr>             >>> ["OP"]
-miley.UnaryExpression = function (node) {
-  if (node.operator === "typeof" && node.argument.type === "Identifier") { return {stmts:[], exprs:[], infos:["typeof", node.argument.name]} }
-  if (node.operator === "delete" && node.argument.type === "Identifier") { return {stmts:[], exprs:[], infos:["delete", node.argument.name, null]} }
-  if (node.operator === "delete" && node.argument.type === "MemberExpression") {
-    if (node.argument.computed) {
-      return {stmts:[], exprs:[node.argument.object, node.argument.property], infos:["delete", null, null]}
-    } else {
-      return {stmts:[], exprs:[node.argument.object], infos:["delete", null, node.argument.property.name]}
-    }
-  }
-  return { stmts:[], exprs:[node.argument], infos:[node.operator] }
-}
-
-
-// interface BinaryExpression <: Expression {
-//   type: "BinaryExpression";
-//   operator: BinaryOperator;
-//   left: Expression;
-//   right: Expression;
-// }
-// enum BinaryOperator {
-//   "==" | "!=" | "===" | "!=="
-//        | "<" | "<=" | ">" | ">="
-//        | "<<" | ">>" | ">>>"
-//        | "+" | "-" | "*" | "/" | "%"
-//        | "|" | "^" | "&" | "in"
-//        | "instanceof" | ".."
-// }
-//
-// [operator]
-//
-// <expr> OP <expr> >>> ["OP"]
-miley.BinaryExpression = function (node) {
-  return { stmts:[], exprs:[node.left, node.right], infos:[node.operator] }
-}
-
-
-// interface AssignmentExpression <: Expression {
-//   type: "AssignmentExpression";
-//   operator: AssignmentOperator;
-//   left: Expression;
-//   right: Expression;
-// }
-// enum AssignmentOperator {
-//   "=" | "+=" | "-=" | "*=" | "/=" | "%="
-//       | "<<=" | ">>=" | ">>>="
-//       | "|=" | "^=" | "&="
-// }
-//
-// [operator, is_identifier, name]
-//
-// ID OP <expr>             >>> ["OP", "ID", null] 
-// <expr>.ID OP <expr>      >>> ["OP", null, "ID"]
-// <expr>[<expr>] OP <expr> >>> ["OP", null, null]
-miley.AssignmentExpression = function (node) {
-  var exprs = [node.right]
-  var infos = left(node.left, exprs)
-  infos.unshift(node.operator)
-  return { stmts:[], exprs:exprs, infos:infos }
-}
-
-
-// interface UpdateExpression <: Expression {
-//   type: "UpdateExpression";
-//   operator: UpdateOperator;
-//   argument: Expression;
-//   prefix: boolean;
-// }
-// enum UpdateOperator {
-//   "++" | "--"
-// }
-//
-// [operator, is_identifier, name]
-//
-// ID OP           >>> [OP, "ID", null]
-// <expr>.ID OP    >>> [OP, null, "ID"]
-// <expr>[expr] OP >>> [OP, null, null]
-miley.UpdateExpression = function (node) {
-  var exprs = []
-  var infos = left(node.argument, exprs)
-  infos.unshift(node.operator)
-  return { stmts:[], exprs:exprs, infos:infos }
-}
-
-
-// interface LogicalExpression <: Expression {
-//   type: "LogicalExpression";
-//   operator: LogicalOperator;
-//   left: Expression;
-//   right: Expression;
-// }
-// enum LogicalOperator {
-//   "||" | "&&"
-// }
-//
-// [operator]
-//
-// <expr> OP <expr> >>> [OP]
-miley.LogicalExpression = function (node) {
-  return { stmts:[], exprs:[node.left, node.right], infos:[node.operator] }
-}
-
-
-// interface ConditionalExpression <: Expression {
-//   type: "ConditionalExpression";
-//   test: Expression;
-//   alternate: Expression;
-//   consequent: Expression;
-// }
-//
-// []
-//
-// <expr>?<expr>:<expr> >>> []
-miley.ConditionalExpression = function (node) {
-  return { stmts:[], exprs:[node.test, node.alternate, node.consequent], infos:[] }
-}
-
-
-// interface NewExpression <: Expression {
-//   type: "NewExpression";
-//   callee: Expression;
-//   arguments: [ Expression ];
-// }
-//
-// [arguments_length]
-//
-// new <expr>()              >>> [0]
-// new <expr>(<expr>)        >>> [1]
-// new <expr>(<expr>,<expr>) >>> [2]
-miley.NewExpression = function (node) {
-  var exprs = node.arguments.slice()
-  exprs.unshift(node.callee)
-  return {
-    stmts:[],
-    exprs:exprs,
-    infos:[node.arguments.length]
-  }
-}
-
-
-// interface CallExpression <: Expression {
-//   type: "CallExpression";
-//   callee: Expression;
-//   arguments: [ Expression ];
-// }
-//
-// [arguments_length, is_member, maybe_property]
-//
-// <expr>()                      >>> [0, false, null]
-// <expr>(<expr>)                >>> [1, false, null]
-// <expr>(<expr>,<expr>)         >>> [2, false, null]
-// <expr>.ID(<expr>,<expr>)      >>> [2, true, "ID"]
-// <expr>[<expr>](<expr>,<expr>) >>> [2, true, null]
-miley.CallExpression = function (node) {
-  var exprs = node.arguments.slice()
-  var is_member = node.callee.type === "MemberExpression"
-  var infos = [node.arguments.length, is_member]
-  if (is_member) {
-    var is_computed = node.callee.computed
-    if (is_computed) { exprs.unshift(node.callee.property) }
-    infos.push(is_computed?null:node.callee.property.name)
-    exprs.unshift(node.callee.object)
-  } else {
-    exprs.unshift(node.callee)
-  }
-  return { stmts:[], exprs:exprs, infos:infos }
-}
-
-
-// interface MemberExpression <: Expression {
-//   type: "MemberExpression";
-//   object: Expression;
-//   property: Identifier | Expression;
-//   computed: boolean;
-// }
-//
-// [property_name]
-//
-// <expr>.ID      >>> ["ID"]
-// <expr>[<expr>] >>> [null]
-miley.MemberExpression = function (node) {
-  var exprs = [node.object]
-  var infos = []
-  if (node.computed) {
-    exprs.push(node.property)
-  } else {
-    if (node.property.type !== "Identifier") { Error("Member expression uncomputed without identifier", node) }
-    infos.push(node.property.name)
-  }
-  return { stmts:[], exprs:exprs, infos:infos }
-}
-
-
-// interface Identifier <: Node, Expression, Pattern {
-//   type: "Identifier";
-//   name: string;
-// }
-//
-// [name]
-//
-// ID >>> ["ID"]
-miley.Identifier = function (node) {
-  return { stmts:[], exprs:[], infos:[node.name] }
-}
-
-
-// interface Literal <: Node, Expression {
-//   type: "Literal";
-//   value: string | boolean | null | number | RegExp;
-// }
-//
-// [value]
-//
-// LIT >>> [LIT]
-miley.Literal = function (node) {
-  return { stmts:[], exprs:[], infos:[node.value] }
-}
-
-},{"./error.js":4}],6:[function(require,module,exports){
+},{"./runtime/compile.js":28,"./runtime/proxy.js":29,"./runtime/stack.js":30}],4:[function(require,module,exports){
 (function (global){
 /*
   Copyright (C) 2012-2014 Yusuke Suzuki <utatane.tea@gmail.com>
@@ -3822,7 +2547,7 @@ miley.Literal = function (node) {
 /* vim: set sw=4 ts=4 et tw=80 : */
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./package.json":22,"estraverse":7,"esutils":11,"source-map":12}],7:[function(require,module,exports){
+},{"./package.json":20,"estraverse":5,"esutils":9,"source-map":10}],5:[function(require,module,exports){
 /*
   Copyright (C) 2012-2013 Yusuke Suzuki <utatane.tea@gmail.com>
   Copyright (C) 2012 Ariya Hidayat <ariya.hidayat@gmail.com>
@@ -4667,7 +3392,7 @@ miley.Literal = function (node) {
 }));
 /* vim: set sw=4 ts=4 et tw=80 : */
 
-},{}],8:[function(require,module,exports){
+},{}],6:[function(require,module,exports){
 /*
   Copyright (C) 2013 Yusuke Suzuki <utatane.tea@gmail.com>
 
@@ -4813,7 +3538,7 @@ miley.Literal = function (node) {
 }());
 /* vim: set sw=4 ts=4 et tw=80 : */
 
-},{}],9:[function(require,module,exports){
+},{}],7:[function(require,module,exports){
 /*
   Copyright (C) 2013-2014 Yusuke Suzuki <utatane.tea@gmail.com>
   Copyright (C) 2014 Ivan Nikulin <ifaaan@gmail.com>
@@ -4916,7 +3641,7 @@ miley.Literal = function (node) {
 }());
 /* vim: set sw=4 ts=4 et tw=80 : */
 
-},{}],10:[function(require,module,exports){
+},{}],8:[function(require,module,exports){
 /*
   Copyright (C) 2013 Yusuke Suzuki <utatane.tea@gmail.com>
 
@@ -5055,7 +3780,7 @@ miley.Literal = function (node) {
 }());
 /* vim: set sw=4 ts=4 et tw=80 : */
 
-},{"./code":9}],11:[function(require,module,exports){
+},{"./code":7}],9:[function(require,module,exports){
 /*
   Copyright (C) 2013 Yusuke Suzuki <utatane.tea@gmail.com>
 
@@ -5090,7 +3815,7 @@ miley.Literal = function (node) {
 }());
 /* vim: set sw=4 ts=4 et tw=80 : */
 
-},{"./ast":8,"./code":9,"./keyword":10}],12:[function(require,module,exports){
+},{"./ast":6,"./code":7,"./keyword":8}],10:[function(require,module,exports){
 /*
  * Copyright 2009-2011 Mozilla Foundation and contributors
  * Licensed under the New BSD license. See LICENSE.txt or:
@@ -5100,7 +3825,7 @@ exports.SourceMapGenerator = require('./source-map/source-map-generator').Source
 exports.SourceMapConsumer = require('./source-map/source-map-consumer').SourceMapConsumer;
 exports.SourceNode = require('./source-map/source-node').SourceNode;
 
-},{"./source-map/source-map-consumer":17,"./source-map/source-map-generator":18,"./source-map/source-node":19}],13:[function(require,module,exports){
+},{"./source-map/source-map-consumer":15,"./source-map/source-map-generator":16,"./source-map/source-node":17}],11:[function(require,module,exports){
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
  * Copyright 2011 Mozilla Foundation and contributors
@@ -5199,7 +3924,7 @@ define(function (require, exports, module) {
 
 });
 
-},{"./util":20,"amdefine":21}],14:[function(require,module,exports){
+},{"./util":18,"amdefine":19}],12:[function(require,module,exports){
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
  * Copyright 2011 Mozilla Foundation and contributors
@@ -5343,7 +4068,7 @@ define(function (require, exports, module) {
 
 });
 
-},{"./base64":15,"amdefine":21}],15:[function(require,module,exports){
+},{"./base64":13,"amdefine":19}],13:[function(require,module,exports){
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
  * Copyright 2011 Mozilla Foundation and contributors
@@ -5387,7 +4112,7 @@ define(function (require, exports, module) {
 
 });
 
-},{"amdefine":21}],16:[function(require,module,exports){
+},{"amdefine":19}],14:[function(require,module,exports){
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
  * Copyright 2011 Mozilla Foundation and contributors
@@ -5469,7 +4194,7 @@ define(function (require, exports, module) {
 
 });
 
-},{"amdefine":21}],17:[function(require,module,exports){
+},{"amdefine":19}],15:[function(require,module,exports){
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
  * Copyright 2011 Mozilla Foundation and contributors
@@ -6047,7 +4772,7 @@ define(function (require, exports, module) {
 
 });
 
-},{"./array-set":13,"./base64-vlq":14,"./binary-search":16,"./util":20,"amdefine":21}],18:[function(require,module,exports){
+},{"./array-set":11,"./base64-vlq":12,"./binary-search":14,"./util":18,"amdefine":19}],16:[function(require,module,exports){
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
  * Copyright 2011 Mozilla Foundation and contributors
@@ -6450,7 +5175,7 @@ define(function (require, exports, module) {
 
 });
 
-},{"./array-set":13,"./base64-vlq":14,"./util":20,"amdefine":21}],19:[function(require,module,exports){
+},{"./array-set":11,"./base64-vlq":12,"./util":18,"amdefine":19}],17:[function(require,module,exports){
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
  * Copyright 2011 Mozilla Foundation and contributors
@@ -6866,7 +5591,7 @@ define(function (require, exports, module) {
 
 });
 
-},{"./source-map-generator":18,"./util":20,"amdefine":21}],20:[function(require,module,exports){
+},{"./source-map-generator":16,"./util":18,"amdefine":19}],18:[function(require,module,exports){
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
  * Copyright 2011 Mozilla Foundation and contributors
@@ -7187,7 +5912,7 @@ define(function (require, exports, module) {
 
 });
 
-},{"amdefine":21}],21:[function(require,module,exports){
+},{"amdefine":19}],19:[function(require,module,exports){
 (function (process,__filename){
 /** vim: et:ts=4:sw=4:sts=4
  * @license amdefine 0.1.0 Copyright (c) 2011, The Dojo Foundation All Rights Reserved.
@@ -7490,7 +6215,7 @@ function amdefine(module, requireFn) {
 module.exports = amdefine;
 
 }).call(this,require('_process'),"/node_modules/Aran/node_modules/escodegen/node_modules/source-map/node_modules/amdefine/amdefine.js")
-},{"_process":38,"path":37}],22:[function(require,module,exports){
+},{"_process":44,"path":43}],20:[function(require,module,exports){
 module.exports={
   "name": "escodegen",
   "description": "ECMAScript code generator",
@@ -7577,7 +6302,7 @@ module.exports={
   "_resolved": "https://registry.npmjs.org/escodegen/-/escodegen-1.5.0.tgz"
 }
 
-},{}],23:[function(require,module,exports){
+},{}],21:[function(require,module,exports){
 /*
   Copyright (C) 2013 Ariya Hidayat <ariya.hidayat@gmail.com>
   Copyright (C) 2013 Thaddee Tyl <thaddee.tyl@gmail.com>
@@ -11335,7 +10060,7 @@ parseStatement: true, parseSourceElement: true */
 }));
 /* vim: set sw=4 ts=4 et tw=80 : */
 
-},{}],24:[function(require,module,exports){
+},{}],22:[function(require,module,exports){
 "use strict";
 var esutils = require("esutils");
 var merge = Object.assign || require("object-assign");
@@ -12143,15 +10868,15 @@ module.exports = {
 
 };
 
-},{"esutils":28,"object-assign":29}],25:[function(require,module,exports){
+},{"esutils":26,"object-assign":27}],23:[function(require,module,exports){
+arguments[4][6][0].apply(exports,arguments)
+},{"dup":6}],24:[function(require,module,exports){
+arguments[4][7][0].apply(exports,arguments)
+},{"dup":7}],25:[function(require,module,exports){
 arguments[4][8][0].apply(exports,arguments)
-},{"dup":8}],26:[function(require,module,exports){
+},{"./code":24,"dup":8}],26:[function(require,module,exports){
 arguments[4][9][0].apply(exports,arguments)
-},{"dup":9}],27:[function(require,module,exports){
-arguments[4][10][0].apply(exports,arguments)
-},{"./code":26,"dup":10}],28:[function(require,module,exports){
-arguments[4][11][0].apply(exports,arguments)
-},{"./ast":25,"./code":26,"./keyword":27,"dup":11}],29:[function(require,module,exports){
+},{"./ast":23,"./code":24,"./keyword":25,"dup":9}],27:[function(require,module,exports){
 /*!
 	object-assign
 	ES6 Object.assign() ponyfill
@@ -12205,125 +10930,1501 @@ arguments[4][11][0].apply(exports,arguments)
 	}
 })();
 
-},{}],30:[function(require,module,exports){
+},{}],28:[function(require,module,exports){
 
-// var o = {}
-// var p = new Proxy(o, {
-//   has: function (o, k) { return (console.log("has "+k), true) },
-//   set: function (o, k, v) { return (console.log("set "+k), o[k]=v) },
-//   get: function (o, k) {
-//     console.log("get "+k)
-//     if (k in o) { return o[k] }
-//     console.log("ReferenceError: "+k+" is not defined :D")
-//   }
-// })
+var Esprima = require("esprima")
+var Esvalid = require("esvalid")
+var Escodegen = require("escodegen")
 
-// with (p) {
-//   var x1 = "varx"
-//   y1 = "y"
-//   z1+1
-//   var f = function () {
-//     var x1 = "varx"
-//     y1 = "y"
-//     z1+1
-//   }
-//   f()
-// }
+var Error = require("../error.js")
 
+var Shadow = require("../syntax/shadow.js")
+var Miley = require("../syntax/miley.js")
 
-
-// var o1 = {}
-// var p1 = new Proxy(o2, {
-//   has: function (o, k) { return (console.log("has1 "+k), k in o) },
-//   get: function (o, k) { return (console.log("get1 "+k), o[k]) },
-//   set: function (o, k, v) { return (console.log("set1 "+k), o[k]=v) }
-// })
-
-// var o2 = {}
-// var p2 = new Proxy(o2, {
-//   has: function (o, k) { return (console.log("has2 "+k), k in o) },
-//   get: function (o, k) { return (console.log("get2 "+k), o[k]) },
-//   set: function (o, k, v) { return (console.log("set2 "+k), o[k]=v) }
-// })
-
-// with (p1) { with (p2) { var x = 1 } }
-
-
-var Util = require("./util.js")
-
-function unescape (s) {
-  if (/^\$+aran$/.test(s)) { return s.substring(1) }
-  return s
-}
+var Hoist = require("../stage/hoist.js")
+var Hook = require("../stage/hook.js")
+var Reduce = require("../stage/reduce.js")
+var Sandbox = require("../stage/sandbox.js")
+var Stack = require("../stage/stack.js")
+var Switch = require("../stage/switch.js")
+var Trap = require("../stage/trap.js")
 
 module.exports = function (aran) {
 
-  var wrap = aran.traps.wrap || Util.identity
-  var booleanize = aran.traps.booleanize || Util.identity
+  var stmts
+  var exprs = []
+  var mark = function (cb) { stmts.push(cb) }
+  var compile = Hook(aran.hooks, Hoist(mark, Switch(mark, Stack(Sandbox(aran.sandbox, Reduce(Trap(aran.traps)))))))
+  var tstmt
+  var texpr
+  var tstmts = []
+  var texprs = []
+  var stmt
+  var expr
+
+  aran.compile = function (code) {
+    var ast = Esprima.parse(code)
+    stmts = ast.body.slice().reverse()
+    if (aran.hooks.program) { ast.body.unshift(Ptah.exprstmt(Shadow("hooks", "Program", [Ptah.literal(stmts.length)]))) }
+    while (stmt = stmts.pop()) {
+      if (typeof stmt === "function") { stmt() }
+      else {
+        stmt.infos = Miley(stmt, tstmts, texprs)
+        compile.stmt(stmt)
+        while (expr = exprs.pop()) {
+          expr.infos = Miley(expr, tstmts, texprs)
+          compile.expr(expr)
+        }
+        while(tstmt = tstmts.pop()) { stmts.push(tstmt) }
+        while(texpr = texprs.pop()) { exprs.push(texpr) }
+      }
+    }
+    var errors = Esvalid.errors(ast)
+    if (errors.length > 0) { Error.internal("Compilation error", errors.map(function (e) { return e.message }), errors) }
+    return Escodegen.generate(ast)
+  }
+
+}
+
+},{"../error.js":2,"../stage/hoist.js":31,"../stage/hook.js":32,"../stage/reduce.js":33,"../stage/sandbox.js":34,"../stage/stack.js":35,"../stage/switch.js":36,"../stage/trap.js":37,"../syntax/miley.js":38,"../syntax/shadow.js":41,"escodegen":4,"esprima":21,"esvalid":22}],29:[function(require,module,exports){
+
+var Error = require("../error.js")
+
+function unescape (str) { if (/^\$*aran$/.test(str)) { return str.substring(1) } return str }
+
+module.exports = function (aran) {
+
+  if (!aran.sandbox) { return }
+
+  if (!aran.global.Proxy) { Error.external("ECMAscript6 proxies are needed to support sandboxing") }
 
   var has = function (o, k) { return unescape(k) in o }
-  if (aran.traps.binary) { has = function (o, k) { return booleanize(aran.traps.binary("in", unescape(k), o)) } }
+  if (aran.traps.exist) { has = function (o, k) { aran.traps.exist(o, unescape(k)) } }
 
   var get = function (o, k) { return o[unescape(k)] }
-  if (aran.traps.get) { get = function (o, k) { return aran.traps.get(o, wrap(unescape(k))) } }
+  if (aran.traps.get) { get = function (o, k) { return aran.traps.get(o, unescape(k)) } }
 
   var set = function (o, k, v) { return o[unescape(k)]=v }
-  if (aran.traps.set) { set = function (o, k, v) { return aran.traps.set(o, wrap(unescape(k)), v) } }
+  if (aran.traps.set) { set = function (o, k, v) { return aran.traps.set(o, unescape(k), v) } }
 
-  aran.proxy = new Proxy(aran.global, {
+  aran.proxy = new aran.global.Proxy(aran.sandbox, {
     has: function (g, k) { return k !== "aran" },
-    set: set,
-    get: function (g, k) {
-      if (has(g, k)) { return get(g, k) }
-      throw new Error("Sandbox reference Error: "+unescape(k)+" is not defined")
-    }
+    get: function (g, k) { if (has(g, k)) { return get(g, k) } throw new Error("Sandbox reference Error: "+unescape(k)+" is not defined") },
+    set: set
   })
 
   aran.with = function (o) {
     return new Proxy(o, {
+      has: function (o, k) { if (k === "aran") { return false } return has(o,k) },
       get: get,
-      set: set,
-      has: function (o, k) {
-        if (k==="aran") { return false}
-        return has(o, k)
-      }
+      set: set
     })
   }
 
 }
 
-},{"./util.js":36}],31:[function(require,module,exports){
+},{"../error.js":2}],30:[function(require,module,exports){
+
+module.exports = function (aran) {
+
+  var marks = []
+  var stack = []
+  var stack1 = []
+  var stack2 = []
+  var stack3 = []
+
+  aran.push = function (x) { return (stack.push(x), x) }
+  aran.push1 = function (x) { return (stack1.push(x), x) }
+  aran.push2 = function (x) { return (stack2.push(x), x) }
+  aran.push3 = function (x) { return (stack3.push(x), x) }
+
+  aran.pop = function () { return stack.pop() }
+  aran.pop1 = function () { return stack1.pop() }
+  aran.pop2 = function () { return stack2.pop() }
+  aran.pop3 = function () { return stack3.pop() }
+
+  aran.get = function () { return stack[stack1.length] }
+  aran.get1 = function () { return stack1[stack1.length] }
+  aran.get2 = function () { return stack2[stack2.length] }
+  aran.get3 = function () { return stack3[stack3.length] }
+
+  aran.mark = function () {
+    var mark = {}
+    marks.push(mark)
+    stack.push(mark)
+    stack1.push(mark)
+    stack2.push(mark)
+    stack3.push(mark)
+  }
+
+  aran.unmark = function () {
+    var mark = marks.pop()
+    while (stack.pop() !== mark);
+    while (stack1.pop() !== mark);
+    while (stack2.pop() !== mark);
+    while (stack3.pop() !== mark);
+  }
+
+}
+
+},{}],31:[function(require,module,exports){
+
+/*
+ * Hoist function declarations and express them in term of variable declarations.
+ */
+
+var Ptah = require("../syntax/ptah.js")
+
+module.exports = function (mark, next) {
+
+  var bodies = []
+
+  function pop () {
+    var body = bodies.pop()
+    for (var i=0; i<body.length; i++) {
+      if (body[i] === null) {
+        body.splice(i,1)
+        i--
+      }
+    }
+  }
+
+  function stmt (stmt) {
+    if (stmt.type === "FunctionDeclaration") {
+      mark(pop)
+      // Function Expression //
+      var expr = Util.extract(stmt)
+      expr.type = "FunctionExpression"
+      expr.body.body.unshift(null)
+      bodies.push(expr.body.body)
+      next.expr(expr)
+      // Declaration //
+      var decl = Ptah.declaration(expr.name, expr)
+      var body = bodies[bodies.length-2]
+      for (var i=0; i<body.length; i++) {
+        if (body[i] === null) { return body.splice(i, 0, decl) }
+      }
+      insert(decl, bodies[bodies.length-2])
+      next.stmt(decl)
+      // Empty Statement //
+      stmt.type="EmptyStatement"
+    }
+    next.stmt(stmt)
+  }
+
+  function expr (expr) {
+    if (expr.type === "FunctionExpression") {
+      mark(pop)
+      bodies.push(expr.body.body)
+    }
+    next.expr(expr)
+  }
+
+  return {stmt:stmt, expr:expr}
+
+}
+
+},{"../syntax/ptah.js":40}],32:[function(require,module,exports){
+
+/*
+ * Insert hooks before statements and expressions.
+ */
+
+var Ptah = require("../syntax/ptah.js")
+var Shadow = require("../syntax/ptah.js")
+
+module.exports = function (hooks, next) {
+
+  if (!hooks) { return {stmt:next.stmt, expr:next.expr} }
+
+  function stmt (stmt) {
+    if (!hooks[stmt.type]) { return next.stmt(stmt) }
+    var copy = Util.extract(stmt)
+    stmt.type = "BlockStatement"
+    stmt.body = [Ptah.exprstmt(Shadow("hooks", copy.type, Ptah.nodify(copy.infos))), copy]
+    next.stmt(copy)
+  }
+
+  function expr (expr) {
+    if (!hooks[expr.type]) { return next.expr(expr) }
+    var copy = Util.extract(expr)
+    expr.type = "SequenceExpression"
+    expr.expressions = [Shadow("hooks", copy.type, Ptah.nodify(copy.infos)), copy]
+    next.expr(copy)
+  }
+
+  return {stmt:stmt, expr:expr}
+
+}
+
+},{"../syntax/ptah.js":40}],33:[function(require,module,exports){
+
+/*
+ * Get rid of simpliest JavaScript syntactic sugar
+ * i.e.: LogicalExpression, UpdateExpression and AssignmentExpression
+ */
+
+var Ptah = require("../syntax/ptah.js")
+var Nasus = require("../syntax/nasus.js")
+
+function pushm (member) { return Ptah.member(Nasus.push1(member.object), member.computed?Nasus.push2(member.property):member.property.name) }
+
+function popm (member) { return Ptah.member(Nasus.pop1(), member.computed?Nasus.pop2():member.property.name) }
+
+module.exports = function (next) {
+
+  function expr (expr) {
+    // LogicalExpression //
+    if (expr.type === "LogicalExpression") {
+      expr.type = "ConditionalExpression"
+      expr.test = Nasus.push(node.left)
+      var seq = Ptah.sequence([Nasus.pop(), node.right])
+      if (expr.operator === "||") { (expr.consequent = Nasus.pop(), expr.alternate = seq) }
+      else if (expr.operator === "&&") { (expr.consequent = seq, expr.alternate = Nasus.pop()) }
+      else { Error("Invalid logical operator", expr) }
+      next.expr(expr)
+      return
+    }
+    // AssignmentExpression //
+    if (expr.type === "AsssignmentExpression" && expr.operator !== "=") {
+      var op = expr.operator.replace("=", "")
+      if (expr.left.type === "Identifier") {
+        var get = Ptah.identifier(node.left.name)
+      } else if (expr.left.type === "MemberExpression") {
+        var get =  popm(expr.left)
+        expr.left = pushm(member)
+      } else {
+        Error("Invalid left hand side", expr)
+      }
+      expr.right = Ptah.binary(op, get, expr.right)
+      expr.operator = "="
+      next.expr(expr)
+      next.expr(expr.right)
+      next.expr(expr.right.left)
+      return
+    }
+    // UpdateExpression //
+    if (expr.type === "UpdateExpression") {
+      var op = expr.operator.substring(1)
+      if (expr.argument.type === "Identifier") {
+        var left = expr.argument
+        var get = Ptah.identifier(expr.argument.name)
+      } else if (expr.argument.type === "MemberExpression") {
+        var left = pushm(expr.argument)
+        var get = popm(expr.argument)
+      } else {
+        Error("Invalid left hand side", expr)
+      }
+      if (!expr.prefix) {
+        get = Nasus.push3(get)
+        expr.type = "SequenceExpression"
+        expr.expressions = [{}, Nasus.pop3()]
+        expr = expr.expressions[0]
+      }
+      expr.type = "AsssignmentExpression"
+      expr.operator = "="
+      expr.left = left
+      expr.right = Ptah.binary(op, get, Ptah.literal(1))
+      next.expr(expr)
+      next.expr(expr.right)
+      next.expr(expr.right.left)
+      next.expr(expr.right.right)
+      return
+    }
+    // Remaing //
+    next.expr(expr)
+  }
+
+  return {stmt:next.stmt, expr:expr}
+
+}
+
+},{"../syntax/nasus.js":39,"../syntax/ptah.js":40}],34:[function(require,module,exports){
+
+/*
+ * Make sure no identifier from the target code shadows aran.
+ */
+
+var Ptah = require("../syntax/ptah.js")
+var Shadow = require("../syntax/shadow.js")
+
+function escape (id) { if (/^\$*aran$/.test(id.name)) { id.name = "$"+id.name } }
+
+function escape_decl (decl) { escape(decl.id) }
+
+module.exports = function (sandbox, next) {
+
+  if (!sandbox) { return {stmt:next.stmt, expr:next.expr} }
+
+  function stmt (stmt) {
+    switch (stmt.type) {
+      case "ForStatement": if (stmt.init && stmt.init.type === "VariableDeclaration") { stmt.init.declarations.forEach(escape_decl) } break
+      case "ForInStatement": if (stmt.left.type === "VariableDeclaration") { escape_decl(stmt.left.declarations[0]) } else if (stmt.left.type === "Identifier") { escape(stmt.left) } break
+      case "VariableDeclaration": stmt.declarations.forEach(escape_decl); break
+      case "FunctionDeclaration": escape(stmt.id); stmt.params.forEach(escape); break
+      case "WithStatement": stmt.object = Shadow("proxy", [stmt.object]); break
+      case "TryStatement": if (stmt.CatchClause) { escape(stmt.CatchClause.param) } break
+    }
+    next.stmt(stmt)
+  }
+
+  function expr (expr) {
+    if (expr.type === "ThisExpression") {
+      var copy = Util.extract(expr)
+      expr.type = "ConditionalExpression"
+      expr.test = Ptah.binary("===", copy, Shadow("global"))
+      expr.consequent = Shadow("sandbox")
+      expr.alternate = Ptah.this()
+      return
+    }
+    switch (expr.type) {
+      case "FunctionExpression": expr.params.forEach(escape); break
+      case "UnaryExpression": if (expr.argument.type === "Identifier" && (expr.operator === "delete" || expr.operator === "typeof")) { escape(expr.argument) } break
+      case "AssignmentExpression": if (expr.left === "Identifier") { escape(expr.left) } break
+      case "UpdateExpression": if (expr.left === "Identifier") { escape(expr.left) } break
+      case "Identifier": escape(expr); break
+    }
+    next.expr(expr)
+  }
+
+  return {stmt:stmt, expr:expr}
+
+}
+
+},{"../syntax/ptah.js":40,"../syntax/shadow.js":41}],35:[function(require,module,exports){
+
+/*
+ * Make sure aran's stacks are cleaned up after try/catch statements.
+ * Because exception is the only way to break expression evaluation,
+ * expressions using aran's stacks can be safely cleanup after the expression.
+ * However this does not hold for statements (break, continue, return).
+ * Consequently statements using aran's stacks should be encapsulated
+ * with a try/finally.
+ */
+
+var Nasus = require("../syntax/nasus.js")
+
+module.exports = function (next) {
+
+  function stmt (stmt) {
+    if (stmt.type === "TryStatement") {
+      stmt.block.body.unshift(Pstack.mark())
+      if (!stmt.finalizer) { stmt.finalizer = Ptah.block([]) }
+      stmt.finalizer.body.unshift(Pstacl.unmark())
+    }
+    next.stmt(stmt)
+  }
+
+  return {stmt:stmt, expr:next.expr}
+
+}
+
+
+},{"../syntax/nasus.js":39}],36:[function(require,module,exports){
+
+/*
+ * Express SwitchStatement in terms of IfStatement.
+ * Empty BreakStatements jumps at the end of the conditionals.
+ */
+
+var Ptah = require("../syntax/ptah.js")
+var Nasus = require("../syntax/nasus.js")
+
+function escape (id) { if (/^\$*switch/.test(id.name)) { id.name="$"+id.name } }
+
+module.exports = function (mark, next) {
+
+  var labels = []
+
+  function pop () { labels.pop() }
+
+  function stmt (stmt) {
+    switch (stmt.type) {
+      case "SwitchStatement":
+        var copy = Util.extract(stmt)
+        var stmts = [Ptah.exprstmt(Nasus.push(copy.discriminant))]
+        stmt.type = "TryStatement"
+        stmt.block = Ptah.block(stmts)
+        stmt.handler = null
+        stmt.finalizer = Ptah.block([Ptah.exprstmt(Nasus.pop())])
+        copy.cases.forEach(function (c) {
+          if (!c.test) { for (var i=0; i<c.consequent.length; i++) { stmts.push(c.consequent[i]) } }
+          else { stmts.push(Ptah.if(Ptah.binary("===", Nasus.get(), c.test), Ptah.block(c.consequent))) }
+        })
+        break
+      case "BreakStatement":
+        if (stmt.label) { escape(stmt.label) }
+        else if (labels[labels.length-1]) { stmt.label = Ptah.identifier("switch"+labels[labels.length-1]) }
+        break
+      case "ContinueStatement": if (stmt.label) { escape(stmt.label) } break
+      case "LabeledStatement": escape(stmt.label); break
+      case "WhileStatement": mark(pop); labels.push(0); break
+      case "DoWhileStatement": mark(pop); labels.push(0); break
+      case "ForStatement": mark(pop); labels.push(0); break
+      case "ForInStatement": mark(pop); labels.push(0); break
+    }
+    next.stmt(stmt)
+  }
+
+  return {stmt:stmt, expr:next.expr}
+
+}
+},{"../syntax/nasus.js":39,"../syntax/ptah.js":40}],37:[function(require,module,exports){
+
+/*
+ * Intercept the evaluation of some expressions/statements.
+ */
+
+var Util = require("../util.js")
+
+var Ptah = require("../syntax/ptah.js")
+var Nasus = require("../syntax/nasus.js")
+var Shadow = require("../syntax/shadow.js")
+
+/////////////
+// Helpers //
+/////////////
+
+function property (member) { member.computed?member.property:Ptah.literal(member.property.name) }
+
+/////////////
+// Exports //
+/////////////
+
+module.exports = function (traps) {
+
+  if (!traps) { return {stmt:Util.nil, expr:Util.nil} }
+
+  var booleanize = traps.booleanize ? function (test, place) { return Shadow("traps", "booleanize", [test, place]) } : Util.identity
+
+  function stmt (stmt) { if (stmts[stmt.type]) { stmts[stmt.type](stmt) } }
+
+  function expr (expr) {
+    if (exprs[expr.type]) {
+      var res = exprs[expr.type](expr)
+      if (res) { Util.inject(res, expr) }
+    }
+  }
+
+  ///////////////
+  // Statement //
+  ///////////////
+
+  var stmts = {}
+
+  stmts.IfStatement = function (node) { node.test = booleanize(node.test, node.alternate?"if-else":"if") }
+
+  stmts.ThrowStatement = function (node) { if (traps.throw) { node.argument = Shadow("traps", "throw", [node.argument]) } }
+
+  stmts.TryStatement = function (node) {
+    if (node.handler && traps.catch) {
+      var name = node.handler.param.name
+      node.handler.body.body.unshift(Ptah.exprstmt(Ptah.assignment(name, Shadow("traps", "catch", [Ptah.identifier(name)]))))
+    }
+  }
+
+  stmts.WhileStatement = function (node) { node.test = booleanize(node.test, "while") }
+
+  stmts.DoWhileStatement = function (node) { node.test = booleanize(node.test, "do-while") }
+
+  stmts.ForStatement = function (node) { if (node.test) { node.test = booleanize(node.test, "for") } }
+
+  // for (var ID=EXPR1 in EXPR2) STMT >>> {
+  //   var #ID=EXPR1;
+  //   aran.push3(aran.traps.enumerate(EXPR2));
+  //   try {
+  //     for (aran.push(0); aran.get()<aran.get3().length; aran.push(aran.pop()+1)) {
+  //       #ID = aran.get3()[aran.get()];
+  //       STMT
+  //     }
+  //   } finally {
+  //     aran.pop();
+  //     aran.pop3();
+  //   }
+  // }
+  //
+  // for (EXPR1[EXPR2] in EXPR3) STMT >>> {
+  //   aran.push1(EXPR1);
+  //   aran.push2(EXPR2);
+  //   aran.push3(aran.traps.enumerate(EXPR3));
+  //   try {
+  //     for (aran.push(0); aran.get()<aran.get3().length; aran.push(aran.pop()+1)) {
+  //       aran.set(aran.get1(), aran.get2(), aran.get3()[aran.get()]);
+  //       STMT
+  //     }
+  //   } finally {
+  //     aran.pop();
+  //     aran.pop1();
+  //     aran.pop2();
+  //     aran.pop3();
+  //   }
+  // }
+  //
+  stmts.ForInStatement = function (node) {
+    if (!traps.enumerate) { return }
+    var stmts = []
+    if (node.left.type === "VariableDeclaration") { stmts.push(node.left) }
+    if (node.left.type === "MemberExpression") {
+      stmts.push1(Ptah.exprstmt(Nasus.push(node.left.object)))
+      stmts.push2(Ptah.exprstmt(Nasus.push(property(node.left.property))))
+    }
+    stmts.push(Ptah.exprstmt(Nasus.push3(Shadow("traps", "enumerate", [node.right]))))
+    var right = Ptah.member(Nasus.get3(), Nasus.get())
+    var ass
+    if (node.left.type === "Identifier") { ass = Ptah.assignment(node.left.name, right) }
+    if (node.left.type === "VariableDeclaration") { ass = Ptah.assignment(node.left.declarations[0].id.name, right) }
+    if (node.left.type === "MemberExpression") {
+      if (traps.set) { ass = Shadow("traps", "set", [Nasus.get1(), Nasus.get2(), right]) }
+      else { ass = Ptah.assignment(node.left, right) }
+    }
+    var pops = [Nasus.pop(), Nasus.pop3()]
+    if (node.left.type === "MemberExpression") { (pops.push(Nasus.pop1()), pops.push(Nasus.pop2())) }
+    var init = Nasus.push(Ptah.literal(0))
+    var test = Ptah.binary("<", Nasus.get(), Ptah.member(Nasus.get3(), "length"))
+    var incr = Nasus.push(Ptah.binary("+", Nasus.pop(), Ptah.literal(1)))
+    var loop = Ptah.for(init, test, incr, Ptah.block([Ptah.exprstmt(ass), node.body]))
+    stmts.push(Ptah.try([loop]), null, null, pops.map(Ptah.exprstmt))
+    Util.inject(Ptah.block([stmts]), node)
+  }
+
+  ////////////////
+  // Expression //
+  ////////////////
+
+  var exprs = {}
+
+  exprs.ArrayExpression = function (node) { if (traps.array) { return Shadow("traps", "array", [node]) } }
+
+  exprs.ObjectExpression = function (node) { if (traps.object) { return Shadow("traps", "object", [node]) } }
+
+  exprs.FunctionExpression = function (node) {
+    if (traps.arguments) {
+      var check = true
+      node.params.forEach(function (id) { if (id.name === "arguments") { check = false } })
+      if (check) { node.body.body.unshift(Ptah.exprstmt(Ptah.assignment("arguments", Shadow("traps", "arguments", [])))) }
+    }
+    if (traps.function) { return Shadow("traps", "function", [node]) }
+  }
+
+  exprs.AssignmentExpression = function (node) {
+    if (node.left.type === "MemberExpression" && aran.traps.set) {
+      return Shadow("traps", "set", [node.left.object, property(node.left)])
+    }
+  }
+
+  // delete EXPR1[EXPR2] >>> aran.traps.delete(EXPR1, EXPR2)
+  // delete ID           >>> aran.traps.erase("ID", delete ID)
+  // delete EXPR         >>> aran.traps.unary("delete", EXPR)
+  // typeof ID           >>> aran.traps.unary("typeof", (function () { try { return #ID } catch (error) { return aran.undefined } } ())
+  // typeof EXPR         >>> aran.traps.unary("typeof", EXPR)
+  // void EXPR           >>> aran.traps.unary("void", EXPR)
+  // etc...
+  exprs.UnaryExpression = function (node) {
+    if (node.operator === "delete" && node.arguments.type === "Identifier") { return Shadow("traps", "erase", [Ptah.literal(node.argument.name), node]) }
+    if (node.operator === "delete" && node.arguments.type === "MemberExpression") { return Shadow("traps", "delete", [node.object, property(node)]) }
+    if (node.operator === "typeof" && node.argument.type === "Identifier") { return Shadow("traps", "unary", [Ptah.literal("typeof"), Ptah.call(Ptah.function([], [Ptah.try([Ptah.return(node.argument)], "error", [Ptah.return(Shadow("undefined"))])]), [])]) }
+    return Shadow("traps", "unary", [Ptah.literal(node.operator), node.argument])
+  }
+
+  exprs.BinaryExpression = function (node) { return Shadow("traps", "binary", [Ptah.literal(node.operator), node.left, node.right]) }
+
+  exprs.ConditionalExpression = function (node) {
+    node.test = booleanize(node.test, "?:")
+    return node
+  }
+
+  // EXPR(EXPR1, EXPR2) >>> aran.traps.apply(EXPR, aran.undefined, [EXPR1, EXPR2])
+  // EXPR1[EXPR2](EXPR3, EXPR4) >>> aran.traps.apply(aran.traps.get(aran.push(EXPR1), EXPR2), aran.pop(), [EXPR1, EXPR2])
+  // eval(EXPR1, EXPR2) >>> (aran.push(eval)===aran.eval)
+  //   ? (aran.pop(), eval(aran.compile(aran.stringify(EXPR1, EXPR2))))
+  //   : aran.traps.apply(aran.pop(), aran.undefined, [EXPR1, EXPR2])
+  // etc...
+  // WARNING arguments duplication in eval case (should be the only place where aliazing occurs)
+  exprs.CallExpression = function (node) {
+    if (node.callee.type === "Identifier" && node.callee.name === "eval") {
+      var test = Ptah.binary("===", Ptah.push(node.callee.name), Shadow("eval"))
+      var cons = Ptah.sequence([
+        Nasus.pop(),
+        Ptah.call(Ptah.identifier("eval"), [Ptah.call(Shadow("compile"), [Shadow("traps", "stringify", [node.arguments])])])
+      ])
+      var alt = traps.apply ? Shadow("traps", "apply", [Nasus.pop(), Shadow("undefined"), Ptah.array(node.arguments)]) : Ptah.call(Nasus.pop(), node.arguments)
+      return Ptah.conditional(test, cons, alt)
+    }
+    if (!traps.apply) { return node }
+    if (node.callee.type !== "MemberExpression") { return Shadow("traps", "apply", [node.callee, Shadow("undefined"), Ptah.array(node.arguments)]) }
+    var get = aran.traps.get ? Shadow("traps", "get", [Nasus.push(node.callee.object), property(node.callee)]) : Ptah.member(Nasus.push(node.callee.object), property(node.callee))
+    return Shadow("traps", "apply", [get, Nasus.pop(), Ptah.array(node.arguments)])
+  }
+
+  exprs.NewExpression = function (node) {
+    if (traps.new) { return Shadow("traps", "new", [node.callee, Ptah.array(node.arguments)]) }
+    return node
+  }
+
+  exprs.MemberExpression = function (node) {
+    if (traps.get) { trap("get", [node.object, property(node)]) }
+    return node
+  }
+
+  exprs.Literal = function (node) {
+    if (traps.regexp) { if (node.regex) { return trap("regexp", [node]) } }
+    if (traps.primitive) { return trap("primitive", [node]) }
+    return node
+  }
+
+  ////////////
+  // Return //
+  ////////////
+
+  return {stmt:stmt, expr:expr}
+
+}
+
+},{"../syntax/nasus.js":39,"../syntax/ptah.js":40,"../syntax/shadow.js":41,"../util.js":42}],38:[function(require,module,exports){
+
+/*
+ * Miley and here wrecking ball well deconstruct Mozilla Parser expressions and statements.
+ * See: https://developer.mozilla.org/en-US/docs/Mozilla/Projects/SpiderMonkey/Parser_API.
+ */
+
+var Error = require("../error.js")
+
+/////////////
+// Helpers //
+/////////////
+
+// Helper for left-hand-side expression used in:
+//   ForInStatement
+//   AssignmentExpression
+//   UpdateExpression
+//   UnaryExpression (delete)
+//
+// [is_identifier, name]
+//
+// ID             >>> ["ID", null]
+// <expr>.ID      >>> [null, "ID"]
+// <expr>[<expr>] >>> [null, null]
+function left (node, exprs) {
+  if (node.type === "Identifier") { return [node.name, null] }
+  if (node.type !== "MemberExpression") { Error.esprima("Invalid left-hand side", node) }
+  exprs.push(node.object)
+  if (node.computed) {
+    exprs.push(node.property)
+    return [null, null]
+  }
+  if (node.property.type === "Identifier") { return [null, node.property.name] }
+  Error.esprima("Member expression uncomputed and property is not an identifier", node)
+}
+
+// Helper for variable declarations used in:
+//   VariableDeclaration
+//   ForStatement
+//
+// [[name,initialized]]
+//
+// var ID;              >>> [["ID",false]]
+// var ID=<expr>;       >>> [["ID",true]]
+// var ID1, ID2=<expr>; >>> [["ID1",false],["ID2",true]]
+// etc...
+function declaration (node, exprs) {
+  var declarations = []
+  node.declarations.forEach(function (d) {
+    declarations.push([d.id.name,Boolean(d.init)])
+    if (d.init) { exprs.push(d.init) }
+  })
+  return declarations
+}
+
+/////////////
+// Exports //
+/////////////
+
+var miley = {}
+module.exports = function (node, stmts, exprs) {
+  if (!miley[node.type]) { Error.esprima("Unknwon node type", node) }
+  return miley[node.type](node, stmts, exprs)
+}
+
+// interface Program <: Node {
+//   type: "Program";
+//   body: [ Statement ];
+// }
+// 
+// [program_length]
+//
+//              >>> []
+// <stmt>       >>> [1]
+// <stmt><stmt> >>> [2]
+miley.Program = function (node, stmts, exprs) {
+  Util.append(stmts, node.body)
+  return [node.body.length]
+}
+
+
+// interface EmptyStatement <: Statement {
+//   type: "EmptyStatement";
+// }
+//
+// []
+//
+// ; >>> []
+miley.EmptyStatement = function (node, stmts, exprs) {
+  return []
+}
+
+
+// interface BlockStatement <: Statement {
+//   type: "BlockStatement";
+//   body: [ Statement ];
+// }
+//
+// [body_length]
+//
+// {}             >>> [0]
+// {<stmt>}       >>> [1]
+// {<stmt><stmt>} >>> [2]
+// etc...
+miley.BlockStatement = function (node, stmts, exprs) {
+  Util.append(stmts, node.body)
+  return [node.body.length]
+}
+
+
+// interface ExpressionStatement <: Statement {
+//   type: "ExpressionStatement";
+//   expression: Expression;
+// }
+//
+// []
+//
+// <expr>; >>> []
+miley.ExpressionStatement = function (node, stmts, exprs) {
+  exprs.push(node.expression)
+  return []
+}
+
+
+// interface IfStatement <: Statement {
+//   type: "IfStatement";
+//   test: Expression;
+//   consequent: Statement;
+//   alternate: Statement | null;
+// }
+//
+// [has_alternate]
+//
+// if (<expr>) <stmt>             >>> [false]
+// if (<expr>) <stmt> else <stmt> >>> [true]
+miley.IfStatement = function (node, stmts, exprs) {
+  exprs.push(node.test)
+  stmts.push(node.consequent)
+  var alt = Boolean(node.alternate)
+  if (alt) { stmts.push(node.alternate) }
+  return [alt]
+}
+
+
+// interface LabeledStatement <: Statement {
+//   type: "LabeledStatement";
+//   label: Identifier;
+//   body: Statement;
+// }
+//
+// [label]
+//
+// ID:<stmt> >>> ["ID"]
+miley.LabeledStatement = function (node, stmts, exprs) {
+  stmts.push(node.body)
+  return [node.label.name]
+}
+
+
+// interface BreakStatement <: Statement {
+//   type: "BreakStatement";
+//   label: Identifier | null;
+// }
+//
+// [label]
+//
+// break;    >>> [null]
+// break ID; >>> ["ID"]
+miley.BreakStatement = function (node, stmts, exprs) {
+  return [node.label?node.label.name:null]
+}
+
+
+// interface ContinueStatement <: Statement {
+//   type: "ContinueStatement";
+//   label: Identifier | null;
+// }
+//
+// [label]
+//
+// continue;    >>> [null]
+// continue ID; >>> ["ID"]
+miley.ContinueStatement = function (node, stmts, exprs) {
+  return [node.label?node.label.name:null]
+}
+
+// interface WithStatement <: Statement {
+//   type: "WithStatement";
+//   object: Expression;
+//   body: Statement;
+// }
+//
+// []
+//
+// with (<expr>) <stmt> >>> []
+miley.WithStatement = function (node, stmts, exprs) {
+  exprs.push(node.object)
+  stmts.push(node.body)
+  return []
+}
+
+
+// interface SwitchStatement <: Statement {
+//   type: "SwitchStatement";
+//   discriminant: Expression;
+//   cases: [ SwitchCase ];
+//  *lexical: boolean;
+// }
+// interface SwitchCase <: Node {
+//   type: "SwitchCase";
+//   test: Expression | null;
+//   consequent: [ Statement ];
+// }
+//
+// [[has_test, consequent_lengths]]
+//
+// TODO update examples
+// switch (<expr>) {}                                 >>> [[], []]
+// switch (<expr>) {case<expr>:}                      >>> [[true], [0]]
+// switch (<expr>) {case<expr>:<stmt>}                >>> [[true], [1]]
+// switch (<expr>) {case<expr>:<stmt><stmt>}          >>> [[true], [2]]
+// switch (<expr>) {case<expr>: case<expr>:<stmt>}    >>> [[true,true], [0,1]]
+// switch (<expr>) {default:}                         >>> [[false], [0]]
+// switch (<expr>) {default:<stmt>}                   >>> [[false], [1]]
+// switch (<expr>) {case<expr>: case<expr>: default:} >>> [[true,true,false], [0,0,0]]
+// etc...
+miley.SwitchStatement = function (node, stmts, exprs) {
+  exprs.push(node.discriminant)
+  return [node.cases.map(function (c) {
+    if (c.test) { exprs.push(c.test) }
+    Util.append(stmts, c.consequent)
+    return [Boolean(c.test), c.consequent.length]
+  })]
+}
+
+
+// interface ReturnStatement <: Statement {
+//   type: "ReturnStatement";
+//   argument: Expression | null;
+// }
+//
+// [has_argument]
+//
+// return;        >>> [false]
+// return <expr>; >>> [true]
+miley.ReturnStatement = function (node, stmts, exprs) {
+  if (node.argument) { exprs.push(node.argument) }
+  return [Boolean(node.argument)]
+}
+
+
+// interface ThrowStatement <: Statement {
+//   type: "ThrowStatement";
+//   argument: Expression;
+// }
+//
+// []
+//
+// throw <expr>; >>> []
+miley.ThrowStatement = function (node, stmts, exprs) {
+  exprs.push(node.argument)
+  return []
+}
+
+
+// interface TryStatement <: Statement {
+//   type: "TryStatement";
+//   block: BlockStatement;
+//   handler: CatchClause | null;
+//  *guardedHandlers: [ CatchClause ];
+//   finalizer: BlockStatement | null;
+// }
+// interface CatchClause <: Node {
+//   type: "CatchClause";
+//   param: Pattern;
+//  *guard: Expression | null;
+//   body: BlockStatement;
+// }
+//
+// [catch_parameter, try_length, catch_length, finally_length]
+//
+// try {} catch (ID) {}                              >>> ["ID", 0, 0, null]
+// try {} finally {}                                 >>> [null, 0, null, 0]
+// try {<stmt>} catch (ID) {}                        >>> ["ID", 1, 0, null]
+// try {<stmt><stmt>} catch (ID) {}                  >>> ["ID", 2, 0, null]
+// try {} catch (ID) {<stmt>}                        >>> ["ID", 0, 1, null]
+// try {<stmt>} catch (ID) {<stmt>} finally {<stmt>} >>> ["ID", 1, 1, 1]
+// etc..
+miley.TryStatement = function (node, stmts, exprs) {
+  Util.append(stmts, node.block.body)
+  var infos = [stmts.length]
+  if (node.handler) {
+    infos.push(node.handler.param.name)
+    infos.push(node.handler.body.length)
+    Util.append(stmts, node.handler.body)
+  } else {
+    infos.push(null)
+    infos.push(null)
+  }
+  if (node.finalizer) {
+    infos.push(node.finalizer.body.length)
+    Util.append(stmts, node.finalizer.body)
+  } else {
+    infos.push(null)
+  }
+  return infos
+}
+
+
+// interface WhileStatement <: Statement {
+//   type: "WhileStatement";
+//   test: Expression;
+//   body: Statement;
+// }
+//
+// []
+//
+// while (<expr>) <stmt> >>> []
+miley.WhileStatement = function (node, stmts, exprs) {
+  exprs.push(node.test)
+  stmts.push(node.body)
+  return []
+}
+
+
+// interface DoWhileStatement <: Statement {
+//   type: "DoWhileStatement";
+//   body: Statement;
+//   test: Expression;
+// }
+//
+// []
+//
+// do <stmt> while (<expr>) >>> []
+miley.DoWhileStatement = function (node, stmts, exprs) {
+  stmts.push(node.body)
+  exprs.push(node.test)
+  return []
+}
+
+
+// interface ForStatement <: Statement {
+//   type: "ForStatement";
+//   init: VariableDeclaration | Expression | null;
+//   test: Expression | null;
+//   update: Expression | null;
+//   body: Statement;
+// }
+//
+// [has_init, has_test, has_update, declarations]
+//
+// for (<expr>;<expr>;<expr>) <stmt> >>> [true, true, true]
+// for (;;) <stmt>                   >>> [false, false, false]
+// for (;<expr>;)                    >>> [false, true, false]
+// for (var ID=<expr>;;)             >>> [true, false, false, [["ID",true]]]
+// for (var ID1=<expr>, ID2;;)       >>> [true, false, false, [["ID1",true],["ID2",false]]]
+miley.ForStatement = function (node, stmts, exprs) {
+  var infos = [node.init, node.test, node.update].map(Boolean)
+  if (node.init) {
+    if (node.init.type !== "VariableDeclaration") { exprs.push(node.init) }
+    else { infos = infos.push(declaration(node.init, exprs)) }
+  }
+  if (node.test) { exprs.push(node.test) }
+  if (node.update) { exprs.push(node.update) }
+  stmts.push(node.body)
+  return infos
+}
+
+
+// interface ForInStatement <: Statement {
+//   type: "ForInStatement";
+//   left: VariableDeclaration | Expression;
+//   right: Expression;
+//   body: Statement;
+//   each: boolean;
+// }
+//
+// [maybe_declaration, maybe_identifier, maybe_property]
+//
+// for (var ID in <expr>) <stmt>          >>> [["ID", false], null, null]
+// for (var ID=<expr> in <expr>) <stmt>   >>> [["ID",true], null, null]
+// for (ID in <expr>) <stmt>              >>> [null, "ID", null]
+// for (<expr>.ID in <expr>) <stmt>       >>> [null, null, "ID"]
+// for (<expr>[<expr>] in <expr>) <stmt>  >>> [null, null, null]
+miley.ForInStatement = function (node, stmts, exprs) {
+  if (node.left.type === "VariableDeclaration") {
+    if (node.left.declarations.length !== 1) { Error.esprima("Not unique variable declaration in for-in statement", node) }
+    var init = node.left.declarations[0].init
+    var infos = [[node.left.declarations[0].id.name, Boolean(init)], null, null]
+    if (init) { exprs.unshift(init) }
+  } else if (node.left.type === "Identifier") {
+    var infos = [null, node.left.type.name, null]
+  } else if (node.left.type === "MemberExpression") {
+    var infos = [null, null, node.left.computed?null:node.left.property.name]
+    exprs.push(node.left.object)
+    if (node.left.computed) { exprs.push(node.left.property) }
+  } else {
+    Error.esprima("Wrong left-hand side in for-in statement", node)
+  }
+  exprs.push(node.right)
+  stmts.push(node.body)
+  return infos
+}
+
+
+// interface FunctionDeclaration <: Function, Declaration {
+//   type: "FunctionDeclaration";
+//   id: Identifier;
+//   params: [ Pattern ];
+//  *defaults: [ Expression ];
+//  *rest: Identifier | null;
+//   body: BlockStatement | Expression;
+//  *generator: boolean;
+//  *expression: boolean;
+// }
+//
+// [name, parameters, body_length]
+//
+// function ID () {}              >>> ["ID", 0, []]
+// function ID () {<stmt>}        >>> ["ID", 1, []]
+// function ID () {<stmt> <stmt>} >>> ["ID", 2, []]
+// function ID0 (ID1) {}          >>> ["ID0", 0, ["ID1"]]
+// function ID0 (ID1, ID2) {}     >>> ["ID0", 0, ["ID1", "ID2"]]
+// etc...
+miley.FunctionDeclaration = function (node, stmts, exprs) {
+  Util.append(stmts, node.body.body)
+  return [
+    node.id.name,
+    node.params.map(function (p) { return p.name }),
+    node.body.body.length
+  ]
+}
+
+
+// interface VariableDeclaration <: Declaration {
+//   type: "VariableDeclaration";
+//   declarations: [ VariableDeclarator ];
+//  *kind: "var" | "let" | "const";
+// }
+// interface VariableDeclarator <: Node {
+//   type: "VariableDeclarator";
+//   id: Pattern;
+//   init: Expression | null;
+// }
+//
+// [[initialized,name]]
+//
+// var ID;              >>> [["ID", false]]
+// var ID=<expr>;       >>> [["ID", true]]
+// var ID1, ID2=<expr>; >>> [["ID1", false], ["ID2", true]]
+// etc...
+miley.VariableDeclaration = declaration
+
+
+// interface ThisExpression <: Expression {
+//   type: "ThisExpression";
+// }
+//
+// []
+//
+// this >>> []
+miley.ThisExpression = function (node, stmts, exprs) {
+  return []
+}
+
+
+// interface ArrayExpression <: Expression {
+//   type: "ArrayExpression";
+//   elements: [ Expression | null ];
+// }
+//
+// [are_present]
+//
+// []              >>> [[]]
+// [<expr>]        >>> [[true]]
+// [<expr>,<expr>] >>> [[true, true]]
+// [<expr>,]       >>> [[true, false]]
+// [,,<expr>]      >>> [[false, false, true]]
+// etc...
+miley.ArrayExpression = function (node, stmts, exprs) {
+  var exprs = []
+  return [node.elements.map(function (e) {
+    if (e) { exprs.push(e) }
+    return Boolean(e)
+  })]
+}
+
+
+// interface ObjectExpression <: Expression {
+//   type: "ObjectExpression";
+//   properties: [ Property ];
+// }
+// interface Property <: Node {
+//   type: "Property";
+//   key: Literal | Identifier;
+//   value: Expression;
+//   kind: "init" | "get" | "set";
+// }
+//
+//
+miley.ObjectExpression = function (node, stmts, exprs) {
+  return [node.properties.map(function (p) {
+    var info = [p.kind]
+    if (p.key.type === "Identifer") { infos.unshift(p.key.name) }
+    else { info.unshift(JSON.stringify(p.key.value)) }
+    if (p.kind !== "init") {
+      info.push(p.value.body.body.length)
+      stmts.push(p.value.body.body.slice())
+    } else {
+      info.push(null)
+      exprs.push(p.value)
+    }
+    return info
+  })]
+}
+
+
+// interface FunctionExpression <: Function, Expression {
+//   type: "FunctionExpression";
+//   id: Identifier | null;
+//   params: [ Pattern ];
+//  *defaults: [ Expression ];
+//  *rest: Identifier | null;
+//   body: BlockStatement | Expression;
+//  *generator: boolean;
+//  *expression: boolean;
+// }
+//
+// [name, parameters, body_length]
+//
+// function () {}               >>> [null, [], 0]
+// function ID () {}            >>> ["ID", [], 0]
+// function (ID1, ID2) {<stmt>} >>> [null, ["ID1", "ID2"], 1]
+// etc..
+miley.FunctionExpression = function (node, stmts, exprs) {
+  Util.append(stmts, node.body.body)
+  return [
+    node.id?node.id.name:null,
+    node.params.map(function (p) { return p.name }),
+    node.body.body.length
+  ]
+}
+
+
+// interface SequenceExpression <: Expression {
+//   type: "SequenceExpression";
+//   expressions: [ Expression ];
+// }
+//
+// [expressions_length]
+//
+// ()               >>> [0]
+// (<expr>)         >>> [1]
+// (<expr>, <expr>) >>> [2]
+// etc...
+miley.SequenceExpression = function (node, stmts, exprs) {
+  Util.append(exprs, node.expressions)
+  return [node.expressions.length]
+}
+
+
+// interface UnaryExpression <: Expression {
+//   type: "UnaryExpression";
+//   operator: UnaryOperator;
+//  !prefix: boolean;
+//   argument: Expression;
+// }
+// enum UnaryOperator {
+//   "-" | "+" | "!" | "~" | "typeof" | "void" | "delete"
+// }
+//
+// [operator, maybe_identifier, maybe_property]
+//
+// typeof ID             >>> ["typeof", "ID", null]
+// delete ID             >>> ["delete", "ID", null]
+// delete <expr>.ID      >>> ["delete", null, "ID"]
+// delete <expr>[<expr>] >>> ["delete", null, null]
+// delete <expr>         >>> ["delete"]
+// OP <expr>             >>> ["OP"]
+miley.UnaryExpression = function (node, stmts, exprs) {
+  if (node.operator === "typeof" && node.argument.type === "Identifier") { return ["typeof", node.argument.name] }
+  if (node.operator === "delete" && node.argument.type === "Identifier") { return ["delete", node.argument.name, null] }
+  if (node.operator === "delete" && node.argument.type === "MemberExpression") {
+    exprs.push(node.argument.object)
+    if (node.argument.computed) {
+      exprs.push(node.argument.property)
+      return ["delete", null, null]
+    } else {
+      return ["delete", null, node.argument.property.name]
+    }
+  }
+  exprs.push(node.argument)
+  return [node.operator]
+}
+
+
+// interface BinaryExpression <: Expression {
+//   type: "BinaryExpression";
+//   operator: BinaryOperator;
+//   left: Expression;
+//   right: Expression;
+// }
+// enum BinaryOperator {
+//   "==" | "!=" | "===" | "!=="
+//        | "<" | "<=" | ">" | ">="
+//        | "<<" | ">>" | ">>>"
+//        | "+" | "-" | "*" | "/" | "%"
+//        | "|" | "^" | "&" | "in"
+//        | "instanceof" | ".."
+// }
+//
+// [operator]
+//
+// <expr> OP <expr> >>> ["OP"]
+miley.BinaryExpression = function (node, stmts, exprs) {
+  exprs.push(node.left)
+  exprs.push(node.right)
+  return [node.operator]
+}
+
+
+// interface AssignmentExpression <: Expression {
+//   type: "AssignmentExpression";
+//   operator: AssignmentOperator;
+//   left: Expression;
+//   right: Expression;
+// }
+// enum AssignmentOperator {
+//   "=" | "+=" | "-=" | "*=" | "/=" | "%="
+//       | "<<=" | ">>=" | ">>>="
+//       | "|=" | "^=" | "&="
+// }
+//
+// [operator, is_identifier, name]
+//
+// ID OP <expr>             >>> ["OP", "ID", null] 
+// <expr>.ID OP <expr>      >>> ["OP", null, "ID"]
+// <expr>[<expr>] OP <expr> >>> ["OP", null, null]
+miley.AssignmentExpression = function (node, stmts, exprs) {
+  var infos = left(node.left, exprs)
+  exprs.push(node.right)
+  infos.unshift(node.operator)
+  return infos
+}
+
+
+// interface UpdateExpression <: Expression {
+//   type: "UpdateExpression";
+//   operator: UpdateOperator;
+//   argument: Expression;
+//   prefix: boolean;
+// }
+// enum UpdateOperator {
+//   "++" | "--"
+// }
+//
+// [operator, is_identifier, name]
+//
+// ID OP           >>> [OP, "ID", null]
+// <expr>.ID OP    >>> [OP, null, "ID"]
+// <expr>[expr] OP >>> [OP, null, null]
+miley.UpdateExpression = function (node, stmts, exprs) {
+  var infos = left(node.argument, exprs)
+  infos.unshift(node.operator)
+  return infos
+}
+
+
+// interface LogicalExpression <: Expression {
+//   type: "LogicalExpression";
+//   operator: LogicalOperator;
+//   left: Expression;
+//   right: Expression;
+// }
+// enum LogicalOperator {
+//   "||" | "&&"
+// }
+//
+// [operator]
+//
+// <expr> OP <expr> >>> [OP]
+miley.LogicalExpression = function (node, stmts, exprs) {
+  exprs.push(node.left)
+  exprs.push(node.right)
+  return [node.operator]
+}
+
+
+// interface ConditionalExpression <: Expression {
+//   type: "ConditionalExpression";
+//   test: Expression;
+//   alternate: Expression;
+//   consequent: Expression;
+// }
+//
+// []
+//
+// <expr>?<expr>:<expr> >>> []
+miley.ConditionalExpression = function (node, stmts, exprs) {
+  exprs.push(node.test)
+  exprs.push(node.consequent)
+  exprs.push(node.alternate)
+  return []
+}
+
+
+// interface NewExpression <: Expression {
+//   type: "NewExpression";
+//   callee: Expression;
+//   arguments: [ Expression ];
+// }
+//
+// [arguments_length]
+//
+// new <expr>()              >>> [0]
+// new <expr>(<expr>)        >>> [1]
+// new <expr>(<expr>,<expr>) >>> [2]
+miley.NewExpression = function (node, stmts, exprs) {
+  exprs.push(node.callee)
+  Util.append(exprs, node.arguments)
+  return [node.arguments.length]
+}
+
+
+// interface CallExpression <: Expression {
+//   type: "CallExpression";
+//   callee: Expression;
+//   arguments: [ Expression ];
+// }
+//
+// [arguments_length, is_member, maybe_property]
+//
+// eval(<expr>)                  >>> [1, false, null]
+// <expr>()                      >>> [0, false, null]
+// <expr>(<expr>)                >>> [1, false, null]
+// <expr>(<expr>,<expr>)         >>> [2, false, null]
+// <expr>.ID(<expr>,<expr>)      >>> [2, true, "ID"]
+// <expr>[<expr>](<expr>,<expr>) >>> [2, true, null]
+miley.CallExpression = function (node, stmts, exprs) {
+  var is_member = node.callee.type === "MemberExpression"
+  var infos = [node.arguments.length, is_member]
+  if (is_member) {
+    var is_computed = node.callee.computed
+    if (is_computed) { exprs.unshift(node.callee.property) }
+    infos.push(is_computed?null:node.callee.property.name)
+    exprs.unshift(node.callee.object)
+  } else if (node.callee.type !== "Identifier" || node.callee.name !== "eval") {
+    exprs.unshift(node.callee)
+  }
+  Util.append(exprs, node.arguments)
+  return infos
+}
+
+
+// interface MemberExpression <: Expression {
+//   type: "MemberExpression";
+//   object: Expression;
+//   property: Identifier | Expression;
+//   computed: boolean;
+// }
+//
+// [property_name]
+//
+// <expr>.ID      >>> ["ID"]
+// <expr>[<expr>] >>> [null]
+miley.MemberExpression = function (node, stmts, exprs) {
+  exprs.push(node.object)
+  var infos = []
+  if (node.computed) {
+    exprs.push(node.property)
+  } else {
+    if (node.property.type !== "Identifier") { Error.esprima("Member expression uncomputed without identifier", node) }
+    infos.push(node.property.name)
+  }
+  return infos
+}
+
+
+// interface Identifier <: Node, Expression, Pattern {
+//   type: "Identifier";
+//   name: string;
+// }
+//
+// [name]
+//
+// ID >>> ["ID"]
+miley.Identifier = function (node, stmts, exprs) {
+  return [node.name]
+}
+
+
+// interface Literal <: Node, Expression {
+//   type: "Literal";
+//   value: string | boolean | null | number | RegExp;
+// }
+//
+// [value]
+//
+// LIT >>> [LIT]
+miley.Literal = function (node, stmts, exprs) {
+  return [node.value]
+}
+
+},{"../error.js":2}],39:[function(require,module,exports){
+
+/*
+ * Nasus and his siphoning strike will construct syntactic calls to aran stacks.
+ */  
 
 var Ptah = require("./ptah.js")
+var Shadow = require("./shadow.js")
 
-function shadow (name, args) { return Ptah.call(Ptah.member(Ptah.identifier("aran"), name), args) }
+exports.mark = function () { return Shadow("mark", []) }
+exports.unmark = function () { return Shadow("unmark", []) }
 
-exports.mark = function () { return shadow("mark", []) }
-exports.unmark = function () { return shadow("unmark", []) }
+exports.push = function (x) { return Shadow("push", [x]) }
+exports.push1 = function (x) { return Shadow("push1", [x]) }
+exports.push2 = function (x) { return Shadow("push2", [x]) }
+exports.push3 = function (x) { return Shadow("push3", [x]) }
 
-exports.push = function (x) { return shadow("push", [x]) }
-exports.push1 = function (x) { return shadow("push1", [x]) }
-exports.push2 = function (x) { return shadow("push2", [x]) }
-exports.push3 = function (x) { return shadow("push3", [x]) }
+exports.pop = function () { return Shadow("pop", []) }
+exports.pop1 = function () { return Shadow("pop1", []) }
+exports.pop2 = function () { return Shadow("pop2", []) }
+exports.pop3 = function () { return Shadow("pop3", []) }
 
-exports.pop = function () { return shadow("pop", []) }
-exports.pop1 = function () { return shadow("pop1", []) }
-exports.pop2 = function () { return shadow("pop2", []) }
-exports.pop3 = function () { return shadow("pop3", []) }
+exports.get = function () { return Shadow("get", []) }
+exports.get1 = function () { return Shadow("get1", []) }
+exports.get2 = function () { return Shadow("get2", []) }
+exports.get3 = function () { return Shadow("get3", []) }
 
-exports.get = function () { return shadow("get", []) }
-exports.get1 = function () { return shadow("get1", []) }
-exports.get2 = function () { return shadow("get2", []) }
-exports.get3 = function () { return shadow("get3", []) }
+},{"./ptah.js":40,"./shadow.js":41}],40:[function(require,module,exports){
 
-},{"./ptah.js":32}],32:[function(require,module,exports){
+/*
+ * The egyptian god Ptah will help you construct generic Mozilla parser node as describred in:
+ * https://developer.mozilla.org/en-US/docs/Mozilla/Projects/SpiderMonkey/Parser_API.
+ */
 
-function nodify (x) {
+var Error = require("../error.js")
+
+exports.nodify = function (x) {
   if (x === null) { return {type:"Literal", value:x} }
   if (x instanceof RegExp) { return {type:"Literal", value:x} }
   if (["boolean", "string", "number"].indexOf(typeof x) !== -1) { return {type:"Literal", value:x} }
   if (x instanceof Array) { return { type:"ArrayExpression", elements:x.map(nodify) } }
-  if (typeof x !== "object") { throw new Error ("Unknown type for "+x) }
+  if (typeof x !== "object") { Error.internal("Unknown type", x) }
   var node = {type:"ObjectExpression", properties:[]}
   for (var k in x) {
     node.properties.push({
@@ -12336,8 +12437,6 @@ function nodify (x) {
   return node
 }
 
-exports.nodify = nodify
-
 exports.empty = function () {
   return { type: "EmptyStatement" }
 }
@@ -12347,6 +12446,10 @@ exports.identifier = function (name) {
     type: "Identifier",
     name: name
   }
+}
+
+exports.this = function () {
+  return { type:"ThisExpression" }
 }
 
 exports.new = function (fct, args) {
@@ -12364,12 +12467,13 @@ exports.literal = function (value) {
   }
 }
 
-exports.member = function (object, k) {
+exports.member = function (object, property) {
+  if (typeof property === "string") { property = {type:"Identifier", name:property} }
   return {
     type: "MemberExpression",
-    computed: (typeof k !== "string"),
-    object:object,
-    property: (typeof k === "string")?exports.identifier(k):k
+    computed: property.type !== "Identifier",
+    object: object,
+    property: property
   }
 }
 
@@ -12405,7 +12509,7 @@ exports.array = function (elements) {
 }
 
 exports.declaration = function (id, init) {
-  if (typeof id === "string") { id = exports.identifier(id) }
+  if (typeof id === "string") { id = {type:"Identifier", name:id} }
   return {
     type: "VariableDeclaration",
     kind: "var",
@@ -12430,6 +12534,7 @@ exports.sequence = function (expressions) {
 }
 
 exports.assignment = function (left, right) {
+  if (typeof left === "string") { left = {type:"Identifier", name:left} }
   return {
     type: "AssignmentExpression",
     operator: "=",
@@ -12507,215 +12612,33 @@ exports.label = function (label, body) {
   }
 }
 
-// exports.data_descr = function (configurable, enumerable, writable, value) {
-//   return {
-//     type: "ObjectExpression",
-//     properties: [{
-//       type:"property",
-//       kind:"init",
-//       name:{type:"identifier", name:"configurable"},
-//       value:{type:"literal", value:configurable}
-//     }, {
-//       type:"property",
-//       kind:"init",
-//       name:{type:"identifier", name:"enumerable"},
-//       value:{type:"literal", value:enumerable}
-//     }, {
-//       type:"property",
-//       kind:"init",
-//       name:{type:"identifier", name:"writable"},
-//       value:{type:"literal", value:writable}
-//     }, {
-//       type:"property",
-//       kind:"init",
-//       name:{type:"identifier", name:"value"},
-//       value:value
-//     }]
-//   }
-// }
+},{"../error.js":2}],41:[function(require,module,exports){
 
-// exports.acce_descr = function (configurable, enumerable, get, set) {
-//     return {
-//     type: "ObjectExpression",
-//     properties: [{
-//       type:"property",
-//       kind:"init",
-//       name:{type:"identifier", name:"configurable"},
-//       value:{type:"literal", value:configurable}
-//     }, {
-//       type:"property",
-//       kind:"init",
-//       name:{type:"identifier", name:"enumerable"},
-//       value:{type:"literal", value:enumerable}
-//     }, {
-//       type:"property",
-//       kind:"init",
-//       name:{type:"identifier", name:"get"},
-//       value:get
-//     }, {
-//       type:"property",
-//       kind:"init",
-//       name:{type:"identifier", name:"set"},
-//       value:set
-//     }]
-//   }
-// }
-
-
-
-
-},{}],33:[function(require,module,exports){
+/*
+ * Call Aran Linvail, the shadow master.
+ */
 
 var Ptah = require("./ptah.js")
-var Util = require("./util.js")
 
-module.exports = function (aran) {
-  
-  function trap (name, args) { return Ptah.call(Ptah.member(Ptah.member(Ptah.identifier("aran"), "traps"), name), args) }  
-
-  return {
-    primitive:  aran.traps.primitive  ? function (x) { return trap("primitive", [x]) }                              : Util.identity,
-    function:   aran.traps.function   ? function (x) { return trap("function", [x]) }                               : Util.identity,
-    arguments:  aran.traps.arguments  ? function (x) { return trap("arguments", [x]) }                              : Util.identity,
-    object:     aran.traps.object     ? function (x) { return trap("object", [x]) }                                 : Util.identity,
-    array:      aran.traps.array      ? function (x) { return trap("array", [x]) }                                  : Util.identity,
-    regexp:     aran.traps.regexp     ? function (x) { return trap("regexp", [x]) }                                 : Util.identity,
-    booleanize: aran.traps.booleanize ? function (x, test) { return trap("booleanize", [Ptah.literal(test), x]) }   : Util.identity,
-    stringify:  aran.traps.stringify  ? function (xs) { return trap("stringify", xs) }                              : function (xs) { return xs[0] },
-    throw:      aran.traps.throw      ? function (x) { return trap("throw", [x]) }                                  : Util.identity,
-    catch:      aran.traps.catch      ? function (x) { return trap("catch", [x]) }                                  : Util.identity,
-    get:        aran.traps.get        ? function (o, p) { return trap("get", [o, p]) }                              : Ptah.member,
-    unary:      aran.traps.unary      ? function (op, x) { return trap("unary", [Ptah.literal(op), x]) }            : Ptah.unary,
-    binary:     aran.traps.binary     ? function (op, x1, x2) { return trap("binary", [Ptah.literal(op), x1, x2]) } : Ptah.binary,
-    new:        aran.traps.new        ? function (f, xs) { return trap("new", [f, Ptah.array(xs)]) }                : Ptah.new,
-    set:        aran.traps.set        ? function (o, p, v) { return trap("set", [o, p, v]) }                        : function set (o, p, v) { return Ptah.assignment(Ptah.member(o, p), v) },
-    delete:     aran.traps.delete     ? function (o, p) { return trap("delete", [o, p]) }                           : function del (o, p) { return Ptah.unary("delete", Ptah.member(o, p)) },
-    erase:      aran.traps.erase      ? function (x, name) { return trap("erase", [Ptah.literal(name), x]) }        : Util.identity,
-    apply: function (f, o, xs) { return trap("apply", [f, o, Ptah.array(xs)]) },
-    enumerate: function (o) { return trap("enumerate", [o]) }
-  }
-
+module.exports = function (x, y, z) {
+  if (z) { return Ptah.call(Ptah.member(Ptah.member(Ptah.identifier("aran"), x), y), z) }
+  if (y) { return Ptah.call(Ptah.member(Ptah.identifier("aran")), z) }
+  if (x) { return Ptah.member(Ptah.identifier("aran"), x) }
+  return Ptah.identifier("aran")
 }
 
-
-
-
-
-
-
-
-  // var wrap       = aran.traps.wrap       ? function (x) { return trap("wrap", [x]) }       : identity
-  // var object     = aran.traps.object     ? function (x) { return trap("object", []) }      : function () { return {type:"ObjectExpression", properties:[]} }
-  //  var object     = aran.traps.object     ? function (x) { return trap("object", []) }      : function () { return {type:"ObjectExpression", properties:[]} }
-  // var booleanize = aran.traps.booleanize ? function (x) { return trap("booleanize", [x]) } : identity
-  // var stringify  = aran.traps.stringify  ? function (x) { return trap("stringify", [x]) }  : identity
-
-  // var o = {wrap:wrap, booleanize:booleanize, stringify:stringify}
-
-  // if (aran.traps.get) { o.get = function (o, k) { return trap("get", [o, k]) } }
-  // else { o.get = function (o, k) { return exports.member(o, stringify(k)) } }
-
-  // if (aran.traps.set) { o.set = function (o, k) { return trap("set", [o, k, v]) } }
-  // else { o.set = function (o, k) { return exports.assignment(exports.member(o, stringify(k)), v) } }
-
-  // if (aran.traps.unary) { o.unary = function (op, arg) { return trap("unary", [o, k, v]) } }
-  // else { o.unary = function (op, arg) { return wrap(exports.unary(op, unwrap(arg))) } }
-
-  // if (aran.traps.delete) { o.delete = function (o, k) { return trap("delete", [o, k])} }
-  // else { o.delete = function (o, k) { return wrap(exports.unary("delete", exports.member(unwrap(o), unwrap(k)))) } }
-
-  // if (aran.traps.binary) { o.binary = function (op, arg1, arg2) { return trap("binary", [op, arg1, arg2]) } }
-  // else { o.binary = function (op, arg1, arg2) { return wrap(exports.binary(op, unwrap(arg1), unwrap(arg2))) } }
-
-  // if (aran.traps.apply) { o.apply = function (fct, th, args) { return trap("apply", [fct, th, args] )}}
-  // else { o.apply = function (fct, th, args) { return exports.call(shadow("apply"), [fct, th, args]) } }
-
-  // if (aran.traps.construct) { o.construct = function (fct, args) { return trap("construct", [fct, args] )}}
-  // else { o.construct = function (fct, args) { return exports.new(shadow(fct, args) } }
-
-
-},{"./ptah.js":32,"./util.js":36}],34:[function(require,module,exports){
-
-module.exports = function (aran) {
-
-  var marks = []
-  var stack = []
-  var stack1 = []
-  var stack2 = []
-  var stack3 = []
-
-  aran.push = function (x) { return (stack.push(x), x) }
-  aran.push1 = function (x) { return (stack1.push(x), x) }
-  aran.push2 = function (x) { return (stack2.push(x), x) }
-  aran.push3 = function (x) { return (stack3.push(x), x) }
-
-  aran.pop = function () { return stack.pop() }
-  aran.pop1 = function () { return stack1.pop() }
-  aran.pop2 = function () { return stack2.pop() }
-  aran.pop3 = function () { return stack3.pop() }
-
-  aran.get = function () { return stack[stack1.length] }
-  aran.get1 = function () { return stack1[stack1.length] }
-  aran.get2 = function () { return stack2[stack2.length] }
-  aran.get3 = function () { return stack3[stack3.length] }
-
-  aran.mark = function () {
-    var mark = {}
-    marks.push(mark)
-    stack.push(mark)
-    stack1.push(mark)
-    stack2.push(mark)
-    stack3.push(mark)
-  }
-
-  aran.unmark = function () {
-    var mark = marks.pop()
-    while (stack.pop() !== mark);
-    while (stack1.pop() !== mark);
-    while (stack2.pop() !== mark);
-    while (stack3.pop() !== mark);
-  }
-
-}
-
-},{}],35:[function(require,module,exports){
-
-var counter = 0
-var labels = [null]
-
-var masks = ["FunctionExpression", "FunctionDeclaration", "ForStatement", "ForInStatement", "WhileStatement", "DoWhileStatement"]
-
-exports.escape = function (id) {
-  if (id.name.indexOf("switch") === 0) { id.name = "$"+id.name}
-}
-
-exports.push = function (type) {
-  if (masks.indexOf(type) !== -1) {
-    labels.push(null)
-    return true
-  }
-  if (type === "SwitchStatement") {
-    labels.push("switch"+(++counter))
-    return true
-  }
-  return false
-}
-
-exports.get = function () {
-  if (labels[labels.length-1]) { return {type:"Identifier", name:labels[labels.length-1]} }
-  return null
-}
-
-exports.pop = function () { labels.pop() }
-
-},{}],36:[function(require,module,exports){
+},{"./ptah.js":40}],42:[function(require,module,exports){
 
 exports.flaten = function (xss) {
   return xss.reduce(function (xs, ys) { return xs.concat(ys) }, [])
 }
 
+exports.append = function (xs, ys) {
+  for (var i=0; i<ys.length; i++) { xs.push(ys[i])}
+}
+
 exports.prepend = function (xs, ys) {
-  for (var i=xs.length-1; i>=0; i--) { ys.unshift(xs[i]) }
+  for (var i=ys.length-1; i>=0; i--) { xs.unshift(ys[i]) }
 }
 
 exports.extract = function (o1) {
@@ -12738,7 +12661,20 @@ exports.inject = function (o1, o2) {
 exports.identity = function (x) { return x }
 
 exports.nil = function () {}
-},{}],37:[function(require,module,exports){
+
+exports.error = function () {
+  var msg = ""
+  for (var i=0; i<arguments.length; i++) {
+    try {
+      msg = msg + JSON.stringify(arguments[i]) + "\n"
+    } catch (e) {
+      msg = msg + arguments[i]
+    }
+  }
+  throw new Error(msg)
+}
+
+},{}],43:[function(require,module,exports){
 (function (process){
 // Copyright Joyent, Inc. and other Node contributors.
 //
@@ -12966,7 +12902,7 @@ var substr = 'ab'.substr(-1) === 'b'
 ;
 
 }).call(this,require('_process'))
-},{"_process":38}],38:[function(require,module,exports){
+},{"_process":44}],44:[function(require,module,exports){
 // shim for using process in browser
 
 var process = module.exports = {};
