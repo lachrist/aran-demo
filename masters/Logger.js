@@ -11,7 +11,7 @@ var hooks = new Proxy({}, {
       log(msg)
     }
   }
-})
+});
 
 function logtrap (name) {
   var msg = 'traps.'+name
@@ -23,10 +23,10 @@ var traps = {
   primitive: function (x) { logtrap('primitive', x); return x; },
   object: function (x) { logtrap('object', x); return x; },
   array: function (x) { logtrap('array', x); return x; },
-  arguments: function (x) { logtrap('arguments', x); return x; }
+  arguments: function (x) { logtrap('arguments', x); return x; },
   function: function (x) { logtrap('function', x); return x; },
   regexp: function (x) { logtrap('regexp', x); return x; },
-  booleanize: function (x) { logtrap('booleanize', x); return x; },
+  booleanize: function (x, u) { logtrap('booleanize', x, u); return x; },
   stringify: function (x) { logtrap('stringify', x); return x; },
   throw: function (x) { logtrap('throw', x); return x; },
   catch: function (x) { logtrap('catch', x); return x; },

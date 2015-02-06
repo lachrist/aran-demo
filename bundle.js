@@ -1,6 +1,6 @@
 window.masters = {};
-window.masters.Logger = "var sandbox = window;\n\nfunction log (msg) { console.log(msg) }\n\nvar hooks = new Proxy({}, {\n  has: function () { return true },\n  get: function (_, type) {\n    return function () {\n      var msg = 'hooks.'+type;\n      for (var i=0; i<arguments.length; i++) { msg = msg+' '+arguments[i] }\n      log(msg)\n    }\n  }\n})\n\nfunction logtrap (name) {\n  var msg = 'traps.'+name\n  for (var i=1; i<arguments.length; i++) { msg = msg+' '+arguments[i] }\n  log(msg)\n}\n\nvar traps = {\n  primitive: function (x) { logtrap('primitive', x); return x; },\n  object: function (x) { logtrap('object', x); return x; },\n  array: function (x) { logtrap('array', x); return x; },\n  arguments: function (x) { logtrap('arguments', x); return x; }\n  function: function (x) { logtrap('function', x); return x; },\n  regexp: function (x) { logtrap('regexp', x); return x; },\n  booleanize: function (x) { logtrap('booleanize', x); return x; },\n  stringify: function (x) { logtrap('stringify', x); return x; },\n  throw: function (x) { logtrap('throw', x); return x; },\n  catch: function (x) { logtrap('catch', x); return x; },\n  unary: function (op, x) { logtrap('unary', op, x); return eval(op+' x'); },\n  binary: function (op, x1, x2) { logtrap('binary', op, x1, x2); return eval('x1 '+op+' x2'); },\n  apply: function (f, o, xs) { logtrap('apply', f, o, xs); return f.apply(o, xs); },\n  new: function (f, xs) {\n    logtrap('new', f, xs);\n    var o = Object.create(f.prototype);\n    var x = f.apply(o, xs);\n    if (typeof x === 'object' && x !== null) { return x }\n    return o;\n  },\n  get: function (o, p) { logtrap('get', o, p); return o[p]; },\n  set: function (o, p, v) { logtrap('set', o, p, v); return o[p]=v; },\n  delete: function (o, p) { logtrap('delete', o, p); return delete o[p]; },\n  enumerate: function (o) {\n    logtrap('enumerate', o);\n    var ps = [];\n    for (p in o) { ps.push(p) }\n    return ps;\n  },\n  erase: function (r, p) { logtrap('erase', r, p); return r; },\n  exist: function (o, p) { logtrap('exist', o, p); return p in o; }\n};\n";
-window.masters.Empty = "var sandbox = {};\nvar hooks = {};\nvar traps = {};";
+window.masters.Empty = "";
+window.masters.Logger = "var sandbox = window;\n\nfunction log (msg) { console.log(msg) }\n\nvar hooks = new Proxy({}, {\n  has: function () { return true },\n  get: function (_, type) {\n    return function () {\n      var msg = 'hooks.'+type;\n      for (var i=0; i<arguments.length; i++) { msg = msg+' '+arguments[i] }\n      log(msg)\n    }\n  }\n});\n\nfunction logtrap (name) {\n  var msg = 'traps.'+name\n  for (var i=1; i<arguments.length; i++) { msg = msg+' '+arguments[i] }\n  log(msg)\n}\n\nvar traps = {\n  primitive: function (x) { logtrap('primitive', x); return x; },\n  object: function (x) { logtrap('object', x); return x; },\n  array: function (x) { logtrap('array', x); return x; },\n  arguments: function (x) { logtrap('arguments', x); return x; },\n  function: function (x) { logtrap('function', x); return x; },\n  regexp: function (x) { logtrap('regexp', x); return x; },\n  booleanize: function (x, u) { logtrap('booleanize', x, u); return x; },\n  stringify: function (x) { logtrap('stringify', x); return x; },\n  throw: function (x) { logtrap('throw', x); return x; },\n  catch: function (x) { logtrap('catch', x); return x; },\n  unary: function (op, x) { logtrap('unary', op, x); return eval(op+' x'); },\n  binary: function (op, x1, x2) { logtrap('binary', op, x1, x2); return eval('x1 '+op+' x2'); },\n  apply: function (f, o, xs) { logtrap('apply', f, o, xs); return f.apply(o, xs); },\n  new: function (f, xs) {\n    logtrap('new', f, xs);\n    var o = Object.create(f.prototype);\n    var x = f.apply(o, xs);\n    if (typeof x === 'object' && x !== null) { return x }\n    return o;\n  },\n  get: function (o, p) { logtrap('get', o, p); return o[p]; },\n  set: function (o, p, v) { logtrap('set', o, p, v); return o[p]=v; },\n  delete: function (o, p) { logtrap('delete', o, p); return delete o[p]; },\n  enumerate: function (o) {\n    logtrap('enumerate', o);\n    var ps = [];\n    for (p in o) { ps.push(p) }\n    return ps;\n  },\n  erase: function (r, p) { logtrap('erase', r, p); return r; },\n  exist: function (o, p) { logtrap('exist', o, p); return p in o; }\n};\n";
 (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
 
 window.Aran = require('Aran')
@@ -10938,7 +10938,6 @@ var Escodegen = require("escodegen")
 
 var Error = require("../error.js")
 
-var Shadow = require("../syntax/shadow.js")
 var Miley = require("../syntax/miley.js")
 
 var Hoist = require("../stage/hoist.js")
@@ -10951,34 +10950,31 @@ var Trap = require("../stage/trap.js")
 
 module.exports = function (aran) {
 
-  var stmts
+  var stmt
+  var expr
+  var stmts = []
   var exprs = []
   var mark = function (cb) { stmts.push(cb) }
   var compile = Hook(aran.hooks, Hoist(mark, Switch(mark, Stack(Sandbox(aran.sandbox, Reduce(Trap(aran.traps)))))))
-  var tstmt
-  var texpr
-  var tstmts = []
-  var texprs = []
-  var stmt
-  var expr
+  var buffer = []
 
   aran.compile = function (code) {
     var ast = Esprima.parse(code)
-    stmts = ast.body.slice().reverse()
-    if (aran.hooks.program) { ast.body.unshift(Ptah.exprstmt(Shadow("hooks", "Program", [Ptah.literal(stmts.length)]))) }
+    stmts.push(ast)
     while (stmt = stmts.pop()) {
       if (typeof stmt === "function") { stmt() }
       else {
-        stmt.infos = Miley(stmt, tstmts, texprs)
+        stmt.infos = Miley(stmt, buffer, exprs)
         compile.stmt(stmt)
-        while (expr = exprs.pop()) {
-          expr.infos = Miley(expr, tstmts, texprs)
-          compile.expr(expr)
-        }
-        while(tstmt = tstmts.pop()) { stmts.push(tstmt) }
-        while(texpr = texprs.pop()) { exprs.push(texpr) }
+        while(stmt = buffer.pop()) { stmts.push(stmt) }
+      }
+      while (expr = exprs.pop()) {
+        expr.infos = Miley(expr, buffer, exprs)
+        compile.expr(expr)
+        while(stmt = buffer.pop()) { stmts.push(stmt) }
       }
     }
+    console.log(JSON.stringify(ast))
     var errors = Esvalid.errors(ast)
     if (errors.length > 0) { Error.internal("Compilation error", errors.map(function (e) { return e.message }), errors) }
     return Escodegen.generate(ast)
@@ -10986,7 +10982,7 @@ module.exports = function (aran) {
 
 }
 
-},{"../error.js":2,"../stage/hoist.js":31,"../stage/hook.js":32,"../stage/reduce.js":33,"../stage/sandbox.js":34,"../stage/stack.js":35,"../stage/switch.js":36,"../stage/trap.js":37,"../syntax/miley.js":38,"../syntax/shadow.js":41,"escodegen":4,"esprima":21,"esvalid":22}],29:[function(require,module,exports){
+},{"../error.js":2,"../stage/hoist.js":31,"../stage/hook.js":32,"../stage/reduce.js":33,"../stage/sandbox.js":34,"../stage/stack.js":35,"../stage/switch.js":36,"../stage/trap.js":37,"../syntax/miley.js":38,"escodegen":4,"esprima":21,"esvalid":22}],29:[function(require,module,exports){
 
 var Error = require("../error.js")
 
@@ -10999,17 +10995,17 @@ module.exports = function (aran) {
   if (!aran.global.Proxy) { Error.external("ECMAscript6 proxies are needed to support sandboxing") }
 
   var has = function (o, k) { return unescape(k) in o }
-  if (aran.traps.exist) { has = function (o, k) { aran.traps.exist(o, unescape(k)) } }
+  if (aran.traps && aran.traps.exist) { has = function (o, k) { return aran.traps.exist(o, unescape(k)) } }
 
   var get = function (o, k) { return o[unescape(k)] }
-  if (aran.traps.get) { get = function (o, k) { return aran.traps.get(o, unescape(k)) } }
+  if (aran.traps && aran.traps.get) { get = function (o, k) { return aran.traps.get(o, unescape(k)) } }
 
   var set = function (o, k, v) { return o[unescape(k)]=v }
-  if (aran.traps.set) { set = function (o, k, v) { return aran.traps.set(o, unescape(k), v) } }
+  if (aran.traps && aran.traps.set) { set = function (o, k, v) { return aran.traps.set(o, unescape(k), v) } }
 
   aran.proxy = new aran.global.Proxy(aran.sandbox, {
     has: function (g, k) { return k !== "aran" },
-    get: function (g, k) { if (has(g, k)) { return get(g, k) } throw new Error("Sandbox reference Error: "+unescape(k)+" is not defined") },
+    get: function (g, k) { if (has(g, k)) { return get(g, k) } throw new ReferenceError("Sandbox reference Error: "+unescape(k)+" is not defined") },
     set: set
   })
 
@@ -11073,50 +11069,54 @@ module.exports = function (aran) {
  * Hoist function declarations and express them in term of variable declarations.
  */
 
+var Util = require("../util.js")
 var Ptah = require("../syntax/ptah.js")
 
 module.exports = function (mark, next) {
 
-  var bodies = []
-
-  function pop () {
-    var body = bodies.pop()
-    for (var i=0; i<body.length; i++) {
-      if (body[i] === null) {
-        body.splice(i,1)
-        i--
+  var push, get
+  (function () {
+    var bodies = []
+    function pop () {
+      var body = bodies.pop()
+      for (var i=0; i<body.length; i++) {
+        if (body[i] === null) {
+          body.splice(i,1)
+          return
+        }
       }
     }
-  }
+    push = function (body) {
+      mark(pop)
+      bodies.push(body)
+      body.unshift(null)
+      return body
+    }
+    get = function (body) { return bodies[bodies.length-1] }
+  } ())
 
   function stmt (stmt) {
-    if (stmt.type === "FunctionDeclaration") {
-      mark(pop)
-      // Function Expression //
-      var expr = Util.extract(stmt)
-      expr.type = "FunctionExpression"
-      expr.body.body.unshift(null)
-      bodies.push(expr.body.body)
-      next.expr(expr)
-      // Declaration //
-      var decl = Ptah.declaration(expr.name, expr)
-      var body = bodies[bodies.length-2]
-      for (var i=0; i<body.length; i++) {
-        if (body[i] === null) { return body.splice(i, 0, decl) }
-      }
-      insert(decl, bodies[bodies.length-2])
-      next.stmt(decl)
-      // Empty Statement //
-      stmt.type="EmptyStatement"
-    }
+    if (stmt.type === "Program") { push(stmt.body) }
+    if (stmt.type !== "FunctionDeclaration") { return next.stmt(stmt) }
+    var parent = get() 
+    push(stmt.body.body)
+    // Function Expression //
+    var copy = Util.extract(stmt)
+    copy.type = "FunctionExpression"
+    // Declaration //
+    var decl = Ptah.declaration(copy.id.name, copy)
+    for (var i=0; parent[i] !== null; i++) ;
+    parent.splice(i, 0, decl)
+    // Empty Statement //
+    stmt.type="EmptyStatement"
+    // Next
     next.stmt(stmt)
+    next.stmt(decl)
+    next.expr(copy)
   }
 
   function expr (expr) {
-    if (expr.type === "FunctionExpression") {
-      mark(pop)
-      bodies.push(expr.body.body)
-    }
+    if (expr.type === "FunctionExpression") { push(expr.body.body) }
     next.expr(expr)
   }
 
@@ -11124,14 +11124,16 @@ module.exports = function (mark, next) {
 
 }
 
-},{"../syntax/ptah.js":40}],32:[function(require,module,exports){
+},{"../syntax/ptah.js":40,"../util.js":42}],32:[function(require,module,exports){
 
 /*
  * Insert hooks before statements and expressions.
  */
 
+
+var Util = require("../util.js")
 var Ptah = require("../syntax/ptah.js")
-var Shadow = require("../syntax/ptah.js")
+var Shadow = require("../syntax/shadow.js")
 
 module.exports = function (hooks, next) {
 
@@ -11139,9 +11141,14 @@ module.exports = function (hooks, next) {
 
   function stmt (stmt) {
     if (!hooks[stmt.type]) { return next.stmt(stmt) }
+    var hook = Ptah.exprstmt(Shadow("hooks", stmt.type, stmt.infos.map(Ptah.nodify)))
+    if (stmt.type === "Program") {
+      stmt.body.unshift(hook)
+      return next.stmt(stmt)
+    }
     var copy = Util.extract(stmt)
     stmt.type = "BlockStatement"
-    stmt.body = [Ptah.exprstmt(Shadow("hooks", copy.type, Ptah.nodify(copy.infos))), copy]
+    stmt.body = [hook, copy]
     next.stmt(copy)
   }
 
@@ -11149,7 +11156,7 @@ module.exports = function (hooks, next) {
     if (!hooks[expr.type]) { return next.expr(expr) }
     var copy = Util.extract(expr)
     expr.type = "SequenceExpression"
-    expr.expressions = [Shadow("hooks", copy.type, Ptah.nodify(copy.infos)), copy]
+    expr.expressions = [Shadow("hooks", copy.type, copy.infos.map(Ptah.nodify)), copy]
     next.expr(copy)
   }
 
@@ -11157,7 +11164,7 @@ module.exports = function (hooks, next) {
 
 }
 
-},{"../syntax/ptah.js":40}],33:[function(require,module,exports){
+},{"../syntax/ptah.js":40,"../syntax/shadow.js":41,"../util.js":42}],33:[function(require,module,exports){
 
 /*
  * Get rid of simpliest JavaScript syntactic sugar
@@ -11205,6 +11212,7 @@ module.exports = function (next) {
     }
     // UpdateExpression //
     if (expr.type === "UpdateExpression") {
+      debugger;
       var op = expr.operator.substring(1)
       if (expr.argument.type === "Identifier") {
         var left = expr.argument
@@ -11385,7 +11393,7 @@ var Shadow = require("../syntax/shadow.js")
 // Helpers //
 /////////////
 
-function property (member) { member.computed?member.property:Ptah.literal(member.property.name) }
+function property (member) { return member.computed?member.property:Ptah.literal(member.property.name) }
 
 /////////////
 // Exports //
@@ -11395,7 +11403,7 @@ module.exports = function (traps) {
 
   if (!traps) { return {stmt:Util.nil, expr:Util.nil} }
 
-  var booleanize = traps.booleanize ? function (test, place) { return Shadow("traps", "booleanize", [test, place]) } : Util.identity
+  var booleanize = traps.booleanize ? function (test, place) { return Shadow("traps", "booleanize", [test, Ptah.literal(place)]) } : Util.identity
 
   function stmt (stmt) { if (stmts[stmt.type]) { stmts[stmt.type](stmt) } }
 
@@ -11493,9 +11501,9 @@ module.exports = function (traps) {
 
   var exprs = {}
 
-  exprs.ArrayExpression = function (node) { if (traps.array) { return Shadow("traps", "array", [node]) } }
+  exprs.ArrayExpression = function (node) { if (traps.array) { return Shadow("traps", "array", [Util.extract(node)]) } }
 
-  exprs.ObjectExpression = function (node) { if (traps.object) { return Shadow("traps", "object", [node]) } }
+  exprs.ObjectExpression = function (node) { if (traps.object) { return Shadow("traps", "object", [Util.extract(node)]) } }
 
   exprs.FunctionExpression = function (node) {
     if (traps.arguments) {
@@ -11503,14 +11511,10 @@ module.exports = function (traps) {
       node.params.forEach(function (id) { if (id.name === "arguments") { check = false } })
       if (check) { node.body.body.unshift(Ptah.exprstmt(Ptah.assignment("arguments", Shadow("traps", "arguments", [])))) }
     }
-    if (traps.function) { return Shadow("traps", "function", [node]) }
+    if (traps.function) { return Shadow("traps", "function", [Util.extract(node)]) }
   }
 
-  exprs.AssignmentExpression = function (node) {
-    if (node.left.type === "MemberExpression" && aran.traps.set) {
-      return Shadow("traps", "set", [node.left.object, property(node.left)])
-    }
-  }
+  exprs.AssignmentExpression = function (node) { if (traps.set && node.left.type === "MemberExpression") { return Shadow("traps", "set", [node.left.object, property(node.left), node.right]) } }
 
   // delete EXPR1[EXPR2] >>> aran.traps.delete(EXPR1, EXPR2)
   // delete ID           >>> aran.traps.erase("ID", delete ID)
@@ -11520,18 +11524,15 @@ module.exports = function (traps) {
   // void EXPR           >>> aran.traps.unary("void", EXPR)
   // etc...
   exprs.UnaryExpression = function (node) {
-    if (node.operator === "delete" && node.arguments.type === "Identifier") { return Shadow("traps", "erase", [Ptah.literal(node.argument.name), node]) }
-    if (node.operator === "delete" && node.arguments.type === "MemberExpression") { return Shadow("traps", "delete", [node.object, property(node)]) }
-    if (node.operator === "typeof" && node.argument.type === "Identifier") { return Shadow("traps", "unary", [Ptah.literal("typeof"), Ptah.call(Ptah.function([], [Ptah.try([Ptah.return(node.argument)], "error", [Ptah.return(Shadow("undefined"))])]), [])]) }
-    return Shadow("traps", "unary", [Ptah.literal(node.operator), node.argument])
+    if (node.operator === "delete" && node.argument.type === "Identifier") { if (!traps.erase) { return } return Shadow("traps", "erase", [Ptah.literal(node.argument.name), Util.extract(node)]) }
+    if (node.operator === "delete" && node.argument.type === "MemberExpression") { if (!traps.delete) { return } return Shadow("traps", "delete", [node.argument.object, property(node.argument)]) }
+    if (node.operator === "typeof" && node.argument.type === "Identifier") { if (!traps.unary) {return } return Shadow("traps", "unary", [Ptah.literal("typeof"), Ptah.call(Ptah.function([], [Ptah.try([Ptah.return(node.argument)], "error", [Ptah.return(Shadow("undefined"))])]), [])]) }
+    if (traps.unary) { return Shadow("traps", "unary", [Ptah.literal(node.operator), node.argument]) }
   }
 
   exprs.BinaryExpression = function (node) { return Shadow("traps", "binary", [Ptah.literal(node.operator), node.left, node.right]) }
 
-  exprs.ConditionalExpression = function (node) {
-    node.test = booleanize(node.test, "?:")
-    return node
-  }
+  exprs.ConditionalExpression = function (node) { node.test = booleanize(node.test, "?:") }
 
   // EXPR(EXPR1, EXPR2) >>> aran.traps.apply(EXPR, aran.undefined, [EXPR1, EXPR2])
   // EXPR1[EXPR2](EXPR3, EXPR4) >>> aran.traps.apply(aran.traps.get(aran.push(EXPR1), EXPR2), aran.pop(), [EXPR1, EXPR2])
@@ -11550,26 +11551,19 @@ module.exports = function (traps) {
       var alt = traps.apply ? Shadow("traps", "apply", [Nasus.pop(), Shadow("undefined"), Ptah.array(node.arguments)]) : Ptah.call(Nasus.pop(), node.arguments)
       return Ptah.conditional(test, cons, alt)
     }
-    if (!traps.apply) { return node }
+    if (!traps.apply) { return }
     if (node.callee.type !== "MemberExpression") { return Shadow("traps", "apply", [node.callee, Shadow("undefined"), Ptah.array(node.arguments)]) }
-    var get = aran.traps.get ? Shadow("traps", "get", [Nasus.push(node.callee.object), property(node.callee)]) : Ptah.member(Nasus.push(node.callee.object), property(node.callee))
+    var get = traps.get ? Shadow("traps", "get", [Nasus.push(node.callee.object), property(node.callee)]) : Ptah.member(Nasus.push(node.callee.object), property(node.callee))
     return Shadow("traps", "apply", [get, Nasus.pop(), Ptah.array(node.arguments)])
   }
 
-  exprs.NewExpression = function (node) {
-    if (traps.new) { return Shadow("traps", "new", [node.callee, Ptah.array(node.arguments)]) }
-    return node
-  }
+  exprs.NewExpression = function (node) { if (traps.new) { return Shadow("traps", "new", [node.callee, Ptah.array(node.arguments)]) } }
 
-  exprs.MemberExpression = function (node) {
-    if (traps.get) { trap("get", [node.object, property(node)]) }
-    return node
-  }
+  exprs.MemberExpression = function (node) { if (traps.get) { Shadow("traps", "get", [node.object, property(node)]) } }
 
   exprs.Literal = function (node) {
-    if (traps.regexp) { if (node.regex) { return trap("regexp", [node]) } }
-    if (traps.primitive) { return trap("primitive", [node]) }
-    return node
+    if (traps.regexp) { if (node.regex) { return Shadow("traps", "regexp", [Util.extract(node)]) } }
+    if (traps.primitive) { return Shadow("traps", "primitive", [Util.extract(node)]) }
   }
 
   ////////////
@@ -11587,6 +11581,7 @@ module.exports = function (traps) {
  * See: https://developer.mozilla.org/en-US/docs/Mozilla/Projects/SpiderMonkey/Parser_API.
  */
 
+var Util = require("../util.js")
 var Error = require("../error.js")
 
 /////////////
@@ -11626,7 +11621,7 @@ function left (node, exprs) {
 // var ID=<expr>;       >>> [["ID",true]]
 // var ID1, ID2=<expr>; >>> [["ID1",false],["ID2",true]]
 // etc...
-function declaration (node, exprs) {
+function declaration (node, stmts, exprs) {
   var declarations = []
   node.declarations.forEach(function (d) {
     declarations.push([d.id.name,Boolean(d.init)])
@@ -11940,7 +11935,7 @@ miley.ForStatement = function (node, stmts, exprs) {
   var infos = [node.init, node.test, node.update].map(Boolean)
   if (node.init) {
     if (node.init.type !== "VariableDeclaration") { exprs.push(node.init) }
-    else { infos = infos.push(declaration(node.init, exprs)) }
+    else { infos = infos.push(declaration(node.init, stmts, exprs)) }
   }
   if (node.test) { exprs.push(node.test) }
   if (node.update) { exprs.push(node.update) }
@@ -12383,7 +12378,7 @@ miley.Literal = function (node, stmts, exprs) {
   return [node.value]
 }
 
-},{"../error.js":2}],39:[function(require,module,exports){
+},{"../error.js":2,"../util.js":42}],39:[function(require,module,exports){
 
 /*
  * Nasus and his siphoning strike will construct syntactic calls to aran stacks.
@@ -12421,16 +12416,17 @@ var Error = require("../error.js")
 
 exports.nodify = function (x) {
   if (x === null) { return {type:"Literal", value:x} }
+  if (x === undefined) { return {type:"Identifier", name:"undefined"} }
   if (x instanceof RegExp) { return {type:"Literal", value:x} }
   if (["boolean", "string", "number"].indexOf(typeof x) !== -1) { return {type:"Literal", value:x} }
-  if (x instanceof Array) { return { type:"ArrayExpression", elements:x.map(nodify) } }
+  if (Array.isArray(x)) { return { type:"ArrayExpression", elements:x.map(exports.nodify) } }
   if (typeof x !== "object") { Error.internal("Unknown type", x) }
   var node = {type:"ObjectExpression", properties:[]}
   for (var k in x) {
     node.properties.push({
       type: "Property",
       key: {type:"Identifier", name:k},
-      value: nodify(x[k]),
+      value: exports.nodify(x[k]),
       kind: "init"
     })
   }
@@ -12622,7 +12618,7 @@ var Ptah = require("./ptah.js")
 
 module.exports = function (x, y, z) {
   if (z) { return Ptah.call(Ptah.member(Ptah.member(Ptah.identifier("aran"), x), y), z) }
-  if (y) { return Ptah.call(Ptah.member(Ptah.identifier("aran")), z) }
+  if (y) { return Ptah.call(Ptah.member(Ptah.identifier("aran"), x), y) }
   if (x) { return Ptah.member(Ptah.identifier("aran"), x) }
   return Ptah.identifier("aran")
 }
@@ -12652,9 +12648,8 @@ exports.extract = function (o1) {
 
 exports.inject = function (o1, o2) {
   if (o1 !== o2) {
-    var k
-    for (k in o2) { delete o2[k] }
-    for (k in o1) { o2[k] = o1[k] }
+    for (var k in o2) { delete o2[k] }
+    for (var k in o1) { o2[k] = o1[k] }
   }
 }
 
