@@ -56,6 +56,7 @@
     </style>
     <script src="bundle.js"></script>
     <script>
+      function assert (x) { if (!x) { throw new Error("Assertion violation") } }
       window.onload = function () {
         // Fetch elements
         var select = document.getElementById("select")

@@ -82,7 +82,7 @@ assert((false?1:2)===2);
 // Array
 var xs = [1,2,3]
 var sum=0
-for (var i=0; i<xs.length; i++) { sum+=xs[i] }
+for (var i=0; i<xs.length; i++) { sum = sum + xs[i] }
 assert(sum === 6)
 
 // With
@@ -90,4 +90,4 @@ var env = {aran:1}
 with (env) { aran++ }
 assert(env.aran === 2)
 
-
+// TODO Assignments operators, switch, some labels...

@@ -3,7 +3,6 @@ var sandbox = window;
 function log (msg) { console.log(msg) }
 
 var hooks = new Proxy({}, {
-  has: function () { return true },
   get: function (_, type) {
     return function () {
       var msg = 'hooks.'+type;
