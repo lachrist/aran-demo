@@ -11118,7 +11118,7 @@ stmts.WithStatement = function (n, s, e) {
 }
 
 stmts.SwitchStatement = function (n, s, e) {
-  e(n.descriminant)
+  e(n.discriminant)
   for (var i=0; i<n.cases.length; i++) {
     var c = n.cases[i]
     if (c.test) { e(c.test) }
@@ -11526,7 +11526,7 @@ function popm (member) { return Ptah.member(Nasus.pop1(), member.computed?Nasus.
 module.exports = function (next) {
 
   function expr (type, expr) {
-    if (expr.operator) { var op = expr.operator[1] }
+    if (expr.operator) { var op = expr.operator[0] }
     // LogicalExpression //
     if (type === "Logical") {
       expr.type = "ConditionalExpression"
@@ -11690,23 +11690,27 @@ var Ptah = require("../syntax/ptah.js")
 var Nasus = require("../syntax/nasus.js")
 
 function escape (id) { if (/^\$*switch/.test(id.name)) { id.name="$"+id.name } }
-function mask (type) { return ["While", "DoWhile", "DeclarationFor", "For", "DeclarationForIn", "IdentifierForIn", "MemberForIn"].indexOf(type) !== -1 }
+var maskers = ["While", "DoWhile", "DeclarationFor", "For", "DeclarationForIn", "IdentifierForIn", "MemberForIn"]
 
 module.exports = function (mark, next) {
 
-  var push, get, pop
+  var mask, push, get, pop
   (function () {
+    var counter = 0
     var labels = [0]
-    push = function (x) { labels.push(x) }
+    mask = function () { labeld.push(0) }
+    incr = function () { labels.push(++counter) } 
     pop = function () { labels.pop() }
     get = function () { return labels[labels.length-1] }
   } ())
   
   function stmt (type, stmt) {
      if (type === "Switch") {
+      incr()
       var stmts = [Ptah.exprstmt(Nasus.push(stmt.discriminant))]
       stmt.type = "LabeledStatement"
-      stmt.body = Ptah.try(Ptah.block(stmts), null, null, Ptah.block([Ptah.exprstmt(Nasus.pop())]))
+      stmt.label = Ptah.identifier("switch"+get())
+      stmt.body = Ptah.try(stmts, null, null, [Ptah.exprstmt(Nasus.pop())])
       stmt.cases.forEach(function (c) {
         if (!c.test) { for (var i=0; i<c.consequent.length; i++) { stmts.push(c.consequent[i]) } }
         else {
@@ -11720,7 +11724,7 @@ module.exports = function (mark, next) {
     }
     if (stmt.label) { escape(stmt.label) }
     else if (type === "Break" && get()) { stmt.label = Ptah.identifier("switch"+get()) }
-    else if (mask(type)) { (mark(pop), push(0)) }
+    else if (maskers.indexOf(type) !== -1) { (mark(pop), mask()) }
     next.stmt(type, stmt)
   }
 

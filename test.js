@@ -90,4 +90,29 @@ var env = {aran:1}
 with (env) { aran++ }
 assert(env.aran === 2)
 
+// Assignment operation
+var x = 1
+x += 3
+assert(x===4)
+var o = {a:1}
+o.a += 3
+assert(o.a === 4)
+
+function f () {
+  
+  a: {
+    console.log("yolo")
+  }
+
+}
+
+var check = 0
+// Switch
+switch (4) {
+  case 1: assert(false); break
+  default: check++;
+  case 4: check++; break
+  case 4: assert(false); break
+}
+assert(check===2)
 // TODO Assignments operators, switch, some labels...
