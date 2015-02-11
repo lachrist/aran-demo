@@ -11422,10 +11422,15 @@ module.exports = function (aran) {
 
 /*
  * Hoist function declarations and express them in term of variable declarations.
+ * TODO: Hoist variables declarations as well.
  */
 
 var Util = require("../util.js")
 var Ptah = require("../syntax/ptah.js")
+var Shadow = require("../syntax/shadow.js")
+
+// We have to initialize all declarations, otherwise it triggers a 'has' trap in top level proxy.
+function initialize (d) { if (!d.init) { d.init = Shadow("undefined") } }
 
 module.exports = function (mark, next) {
 
@@ -11448,13 +11453,8 @@ module.exports = function (mark, next) {
   }
 
   function stmt (type, stmt) {
-    if (type !== "Definition") { return next.stmt(type, stmt) }
-    var copy = Util.extract(stmt)
-    copy.type = "FunctionExpression"
-    stmt.type = "EmptyStatement"
-    hoist(next.stmt("Declaration", Ptah.declaration(copy.id.name, copy)))
-    push(copy.body.body)
-    return (next.expr("Function", copy), next.stmt("Empty", stmt))
+    if (stmts[type]) { type = stmts[type](stmt) }
+    return next.stmt(type, stmt)
   }
 
   function expr (type, expr) {
@@ -11462,11 +11462,29 @@ module.exports = function (mark, next) {
     return next.expr(type, expr)
   }
 
+  var stmts = {}
+
+  stmts.Definition = function (stmt) {
+    var copy = Util.extract(stmt)
+    copy.type = "FunctionExpression"
+    stmt.type = "EmptyStatement"
+    hoist(next.stmt("Declaration", Ptah.declaration(copy.id.name, copy)))
+    push(copy.body.body)
+    next.expr("Function", copy)
+    return "Empty"
+  }
+
+  stmts.Declaration = function (stmt) { return (stmt.declarations.forEach(initialize), "Declaration") }
+
+  stmts.DeclarationForIn = function (stmt) { return (initialize(stmt.left.declarations[0]), "DeclarationForIn") }
+
+  stmts.DeclarationFor = function (stmt) { return (stmt.init.declarations.forEach(initialize), "DeclarationFor") }
+
   return {prgm:prgm, stmt:stmt, expr:expr}
 
 }
 
-},{"../syntax/ptah.js":42,"../util.js":44}],35:[function(require,module,exports){
+},{"../syntax/ptah.js":42,"../syntax/shadow.js":43,"../util.js":44}],35:[function(require,module,exports){
 
 /*
  * Insert hooks before statements and expressions.
@@ -11514,6 +11532,7 @@ module.exports = function (hooks, mark, next) {
 /*
  * Get rid of simpliest JavaScript syntactic sugar
  * i.e.: LogicalExpression, UpdateExpression and AssignmentExpression
+ * TODO: Try to reduce code duplication and yet have a simple code...
  */
 
 var Ptah = require("../syntax/ptah.js")
@@ -11617,9 +11636,14 @@ module.exports = function (sandbox, next) {
     if (type === "This") {
       expr.type = "ConditionalExpression"
       expr.test = Ptah.binary("===", Nasus.push(next.expr("This", Ptah.this())), Shadow("global"))
-      expr.consequent = Ptah.sequence(Nasus.pop(), Shadow("sandbox"))
+      expr.consequent = Ptah.sequence([Nasus.pop(), Shadow("sandbox")])
       expr.alternate = Nasus.pop()
       return expr
+    }
+    if (type === "IdentifierTypeof") {
+      escape(expr.argument)
+      expr.argument = Ptah.call(Ptah.function([], [Ptah.try([Ptah.return(expr.argument)], "error", [Ptah.return(Shadow("undefined"))])]), [])
+      return next.expr("Unary", expr)
     }
     if (exprs[type]) { exprs[type](expr) }
     return next.expr(type, expr)
@@ -11637,7 +11661,6 @@ module.exports = function (sandbox, next) {
 
   var exprs = {
     Function: function (expr) { expr.params.forEach(escape) },
-    IdentifierTypeof: function (expr) { escape(expr.argument) },
     IdentifierDelete: function (expr) { escape(expr.argument) },
     IdentifierAssignment: function (expr) { escape(expr.left) },
     IdentifierUpdate: function (expr) { escape(expr.argument) },
@@ -11706,15 +11729,12 @@ module.exports = function (mark, next) {
   } ())
   
   function stmt (type, stmt) {
-    if (type === "Break") {
-      //yolo
-    }
     if (type === "Switch") {
       incr()
       var stmts = [Ptah.exprstmt(Nasus.push(stmt.discriminant))]
       stmt.cases.forEach(function (c) {
         if (!c.test) { for (var i=0; i<c.consequent.length; i++) { stmts.push(c.consequent[i]) } }
-        else { stmts.push(next.stmt("If", Ptah.if(next.stmt("Binary", Ptah.binary("===", Nasus.get(), c.test)), Ptah.block(c.consequent)))) }
+        else { stmts.push(next.stmt("If", Ptah.if(next.expr("Binary", Ptah.binary("===", Nasus.get(), c.test)), Ptah.block(c.consequent)))) }
       })
       Util.inject(Ptah.label("switch"+get(), Ptah.try(stmts, null, null, [Ptah.exprstmt(Nasus.pop())])), stmt)
       return stmt
@@ -11764,6 +11784,7 @@ module.exports = function (traps) {
   /////////////
   // Helpers //
   /////////////
+
 
   var booleanize = traps.booleanize ? function (test, place) { return Shadow("traps", "booleanize", [test, Ptah.literal(place)]) } : Util.identity
 
@@ -11888,8 +11909,6 @@ module.exports = function (traps) {
   }
 
   exprs.MemberAssignment = function (node) { if (traps.set) { return Shadow("traps", "set", [node.left.object, property(node.left), node.right]) } }
-
-  exprs.IdentifierTypeof = function (node) { if (traps.unary) { return Shadow("traps", "unary", [Ptah.literal("typeof"), Ptah.call(Ptah.function([], [Ptah.try([Ptah.return(node.argument)], "error", [Ptah.return(Shadow("undefined"))])]), [])]) } }
 
   exprs.IdentifierDelete = function (node) { if (traps.unary) { return Shadow("traps", "delete", [Ptah.literal(node.argument.name), Util.extract(node)]) } }
 
