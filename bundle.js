@@ -1,6 +1,6 @@
 window.masters = {};
-window.masters.Logger = "var sandbox = window;\n\nfunction log (msg) { console.log(msg) }\n\nvar hooks = new Proxy({}, {\n  get: function (_, type) {\n    return function () {\n      var msg = 'hooks.'+type;\n      for (var i=0; i<arguments.length; i++) { msg = msg+' '+arguments[i] }\n      log(msg)\n    }\n  }\n});\n\nfunction logtrap (name) {\n  var msg = 'traps.'+name\n  for (var i=1; i<arguments.length; i++) { msg = msg+' '+arguments[i] }\n  log(msg)\n}\n\nvar traps = {\n  primitive: function (x) { logtrap('primitive', x); return x; },\n  object: function (x) { logtrap('object', x); return x; },\n  array: function (x) { logtrap('array', x); return x; },\n  arguments: function (x) { logtrap('arguments', x); return x; },\n  function: function (x) { logtrap('function', x); return x; },\n  regexp: function (x) { logtrap('regexp', x); return x; },\n  booleanize: function (x, u) { logtrap('booleanize', x, u); return x; },\n  stringify: function (x) { logtrap('stringify', x); return x; },\n  throw: function (x) { logtrap('throw', x); return x; },\n  catch: function (x) { logtrap('catch', x); return x; },\n  unary: function (op, x) { logtrap('unary', op, x); return eval(op+' x'); },\n  binary: function (op, x1, x2) { logtrap('binary', op, x1, x2); return eval('x1 '+op+' x2'); },\n  apply: function (f, o, xs) { logtrap('apply', f, o, xs); return f.apply(o, xs); },\n  new: function (f, xs) {\n    logtrap('new', f, xs);\n    var o = Object.create(f.prototype);\n    var x = f.apply(o, xs);\n    if (typeof x === 'object' && x !== null) { return x }\n    return o;\n  },\n  get: function (o, p) { logtrap('get', o, p); return o[p]; },\n  set: function (o, p, v) { logtrap('set', o, p, v); return o[p]=v; },\n  delete: function (o, p) { logtrap('delete', o, p); return delete o[p]; },\n  enumerate: function (o) {\n    logtrap('enumerate', o);\n    var ps = [];\n    for (p in o) { ps.push(p) }\n    return ps;\n  },\n  erase: function (r, p) { logtrap('erase', r, p); return r; },\n  exist: function (o, p) { logtrap('exist', o, p); return p in o; }\n};\n";
 window.masters.Empty = "";
+window.masters.Logger = "var sandbox = window;\n\nfunction log (msg) { console.log(msg) }\n\nvar hooks = new Proxy({}, {\n  get: function (_, type) {\n    return function () {\n      var msg = 'hooks.'+type;\n      for (var i=0; i<arguments.length; i++) { msg = msg+' '+arguments[i] }\n      log(msg)\n    }\n  }\n});\n\nfunction logtrap (name) {\n  var msg = 'traps.'+name\n  for (var i=1; i<arguments.length; i++) { msg = msg+' '+arguments[i] }\n  log(msg)\n}\n\nvar traps = {\n  primitive: function (x) { logtrap('primitive', x); return x; },\n  object: function (x) { logtrap('object', x); return x; },\n  array: function (x) { logtrap('array', x); return x; },\n  arguments: function (x) { logtrap('arguments', x); return x; },\n  function: function (x) { logtrap('function', x); return x; },\n  regexp: function (x) { logtrap('regexp', x); return x; },\n  booleanize: function (x, u) { logtrap('booleanize', x, u); return x; },\n  stringify: function (x) { logtrap('stringify', x); return x; },\n  throw: function (x) { logtrap('throw', x); return x; },\n  catch: function (x) { logtrap('catch', x); return x; },\n  unary: function (op, x) { logtrap('unary', op, x); return eval(op+' x'); },\n  binary: function (op, x1, x2) { logtrap('binary', op, x1, x2); return eval('x1 '+op+' x2'); },\n  apply: function (f, o, xs) { logtrap('apply', f, o, xs); return f.apply(o, xs); },\n  new: function (f, xs) {\n    logtrap('new', f, xs);\n    var o = Object.create(f.prototype);\n    var x = f.apply(o, xs);\n    if (typeof x === 'object' && x !== null) { return x }\n    return o;\n  },\n  get: function (o, p) { logtrap('get', o, p); return o[p]; },\n  set: function (o, p, v) { logtrap('set', o, p, v); return o[p]=v; },\n  delete: function (o, p) { logtrap('delete', o, p); return delete o[p]; },\n  enumerate: function (o) {\n    logtrap('enumerate', o);\n    var ps = [];\n    for (p in o) { ps.push(p) }\n    return ps;\n  },\n  erase: function (r, p) { logtrap('erase', r, p); return r; },\n  exist: function (o, p) { logtrap('exist', o, p); return p in o; }\n};\n";
 (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
 
 window.Aran = require('Aran')
@@ -10971,7 +10971,7 @@ stmts.DeclarationFor   = function (n) { return [n.init.declarations.map(declarat
 stmts.For              = function (n) { return [Boolean(n.init), Boolean(n.test), Boolean(n.update)] }
 stmts.IdentifierForIn  = function (n) { return [identifier(n.left)] }
 stmts.MemberForIn      = function (n) { return [member(n.left)] }
-stmts.DeclarationForIn = function (n) { return declaration(n.left) }
+stmts.DeclarationForIn = function (n) { return declaration(n.left.declarations[0]) }
 stmts.Definition       = function (n) { return [identifier(n.id), n.params.map(identifier), n.body.body.length] }
 stmts.Declaration      = function (n) { return [n.declarations.map(declaration)] }
 
@@ -11036,8 +11036,8 @@ module.exports = function (svisit, evisit) {
     while (n = buffer.pop()) { nodes.push(n) }
     while (n = nodes.pop()) {
       if (typeof n === "function") { n() }
-      if (n.stmt) { svisit(stmts[n.type](n, s, e), n) }
-      if (n.expr) { evisit(exprs[n.type](n, s, e), n) }
+      if (n.stmt) { (delete n.stmt, svisit(stmts[n.type](n, s, e), n)) }
+      if (n.expr) { (delete n.expr, evisit(exprs[n.type](n, s, e), n)) }
       while (n = buffer.pop()) { nodes.push(n) }
     }
   }
@@ -11157,17 +11157,13 @@ stmts.DoWhileStatement = function (n, s, e) {
 }
 
 stmts.ForStatement = function (n, s, e) {
+  var type = "For"
   if (n.init) {
-    if (n.init.type !== "VariableDeclaration") {
-      var type = "DeclarationFor"
-      e(n.init)
-    }
-    else {
-      var type = "For"
+    if (n.init.type === "VariableDeclaration") {
+      type = "DeclarationFor"
       declarations(n.init.declarations, e)
     }
-  } else {
-    var type = "For"
+    else { e(n.init) }
   }
   if (n.test) { e(n.test) }
   if (n.update) { e(n.update) }
@@ -11313,6 +11309,12 @@ var Stack = require("../stage/stack.js")
 var Switch = require("../stage/switch.js")
 var Trap = require("../stage/trap.js")
 
+function summarize (error) {
+  var sum = error.message+" for node:";
+  for (var key in error.node) { sum += " "+key+":"+error.node[key] }
+  return sum
+}
+
 module.exports = function (aran) {
 
   function statement (type, node) { compile.stmt(type, node) }
@@ -11326,8 +11328,11 @@ module.exports = function (aran) {
     compile.prgm(ast)
     push(ast)
     var errors = Esvalid.errors(ast)
-    if (errors.length > 0) { Util.log("Compilation warning", errors.map(function (e) { return e.message }), errors) }
-    return Escodegen.generate(ast)
+    if (errors.length > 0) { Util.log("Compilation warning", errors.map(summarize), errors) }
+    console.log(JSON.stringify(ast))
+    var code =  Escodegen.generate(ast)
+    console.log(code)
+    return code
   }
 
 }
@@ -11379,20 +11384,20 @@ module.exports = function (aran) {
   var stack2 = []
   var stack3 = []
 
-  aran.push = function (x) { return (stack.push(x), x) }
+  aran.push  = function (x) { return (stack .push(x), x) }
   aran.push1 = function (x) { return (stack1.push(x), x) }
   aran.push2 = function (x) { return (stack2.push(x), x) }
   aran.push3 = function (x) { return (stack3.push(x), x) }
 
-  aran.pop = function () { return stack.pop() }
+  aran.pop  = function () { return stack .pop() }
   aran.pop1 = function () { return stack1.pop() }
   aran.pop2 = function () { return stack2.pop() }
   aran.pop3 = function () { return stack3.pop() }
 
-  aran.get = function () { return stack[stack1.length] }
-  aran.get1 = function () { return stack1[stack1.length] }
-  aran.get2 = function () { return stack2[stack2.length] }
-  aran.get3 = function () { return stack3[stack3.length] }
+  aran.get  = function () { return stack [stack .length-1] }
+  aran.get1 = function () { return stack1[stack1.length-1] }
+  aran.get2 = function () { return stack2[stack2.length-1] }
+  aran.get3 = function () { return stack3[stack3.length-1] }
 
   aran.mark = function () {
     var mark = {}
@@ -11538,17 +11543,21 @@ module.exports = function (next) {
   }
 
   exprs.IdentifierAssignment = function (expr) {
-    var op = expr.operator[0]
-    expr.operator = "="
-    expr.right = next.expr("Binary", Ptah.binary(op, next.expr("Identifier", Ptah.identifier(expr.left.name)), expr.right))
+    if (expr.operator !== "=") {
+      var op = expr.operator.replace("=", "")
+      expr.operator = "="
+      expr.right = next.expr("Binary", Ptah.binary(op, next.expr("Identifier", Ptah.identifier(expr.left.name)), expr.right))
+    }
     return next.expr("IdentifierAssignment", expr)
   }
 
   exprs.MemberAssignment = function (expr) {
-    var op = expr.operator[0]
-    expr.operator = "="
-    expr.right = next.expr("Binary", Ptah.binary(op, next.expr("Member", popm(expr.left)), expr.right))
-    expr.left = pushm(expr.left)
+    if (expr.operator !== "=") {
+      var op = expr.operator.replace("=", "")
+      expr.operator = "="
+      expr.right = next.expr("Binary", Ptah.binary(op, next.expr("Member", popm(expr.left)), expr.right))
+      expr.left = pushm(expr.left)
+    }
     return next.expr("MemberAssignment", expr)
   }
 
@@ -11589,6 +11598,7 @@ module.exports = function (next) {
  */
 
 var Ptah = require("../syntax/ptah.js")
+var Nasus = require("../syntax/nasus.js")
 var Shadow = require("../syntax/shadow.js")
 
 function escape (id) { if (/^\$*aran$/.test(id.name)) { id.name = "$"+id.name } }
@@ -11638,7 +11648,7 @@ module.exports = function (sandbox, next) {
 
 }
 
-},{"../syntax/ptah.js":42,"../syntax/shadow.js":43}],38:[function(require,module,exports){
+},{"../syntax/nasus.js":41,"../syntax/ptah.js":42,"../syntax/shadow.js":43}],38:[function(require,module,exports){
 
 /*
  * Make sure aran's stacks are cleaned up after try/catch statements.
@@ -11761,29 +11771,34 @@ module.exports = function (traps) {
 
   function forin (type, node) {
     if (!traps.enumerate) { return }
-    var stmts = []
-    if (type === "DeclarationForIn") { stmts.push(node.left) }
+    var pushes = [Nasus.push(Ptah.literal(0))]
+    var pops = [Nasus.pop()]
     if (type === "MemberForIn") {
-      stmts.push1(Ptah.exprstmt(Nasus.push(node.left.object)))
-      stmts.push2(Ptah.exprstmt(Nasus.push(property(node.left.property))))
+      pushes.push(Nasus.push1(node.left.object))
+      pushes.push(Nasus.push2(property(node.left.property)))
+      pops.push(Nasus.pop1())
+      pops.push(Nasus.pop2())
     }
-    stmts.push(Ptah.exprstmt(Nasus.push3(Shadow("traps", "enumerate", [node.right]))))
+    pushes.push(Nasus.push3(Shadow("traps", "enumerate", [node.right])))
+    pops.push(Nasus.pop3())
     var right = Ptah.member(Nasus.get3(), Nasus.get())
     var ass
-    if (type === "DeclarationIn") { ass = Ptah.assignment(node.left.declarations[0].id.name, right) }
+    if (type === "DeclarationForIn") { ass = Ptah.assignment(node.left.declarations[0].id.name, right) }
     if (type === "IdentifierForIn") { ass = Ptah.assignment(node.left.name, right) }
     if (type === "MemberForIn") {
       if (traps.set) { ass = Shadow("traps", "set", [Nasus.get1(), Nasus.get2(), right]) }
-      else { ass = Ptah.assignment(node.left, right) }
+      else { ass = Ptah.assignment(Ptah.member(Nasus.get1(), Nasus.get2()), right) }
     }
-    var pops = [Nasus.pop(), Nasus.pop3()]
-    if (type === "MemberExpression") { (pops.push(Nasus.pop1()), pops.push(Nasus.pop2())) }
-    var init = Nasus.push(Ptah.literal(0))
-    var test = Ptah.binary("<", Nasus.get(), Ptah.member(Nasus.get3(), "length"))
-    var incr = Nasus.push(Ptah.binary("+", Nasus.pop(), Ptah.literal(1)))
-    var loop = Ptah.for(init, test, incr, Ptah.block([Ptah.exprstmt(ass), node.body]))
-    stmts.push(Ptah.try([loop]), null, null, pops.map(Ptah.exprstmt))
-    Util.inject(Ptah.block([stmts]), node)
+    var trystmts = [Ptah.for(
+      null,
+      Ptah.binary("<", Nasus.get(), Ptah.member(Nasus.get3(), "length")),
+      Nasus.push(Ptah.binary("+", Nasus.pop(), Ptah.literal(1))),
+      Ptah.block([Ptah.exprstmt(ass), node.body])
+    )]
+    if (type === "DeclarationForIn") { trystmts.unshift(node.left) }
+    var stmts = pushes.map(Ptah.exprstmt)
+    stmts.push(Ptah.try(trystmts, null, null, pops.map(Ptah.exprstmt)))
+    Util.inject(Ptah.block(stmts), node)
   }
 
   ///////////////
@@ -11807,9 +11822,9 @@ module.exports = function (traps) {
   stmts.For = function (node) { if (node.test) { node.test = booleanize(node.test, "for") } }
 
   // for (var ID=EXPR1 in EXPR2) STMT >>> {
-  //   var #ID=EXPR1;
-  //   aran.push3(aran.traps.enumerate(EXPR2));
   //   try {
+  //     var #ID=EXPR1;
+  //     aran.push3(aran.traps.enumerate(EXPR2));
   //     for (aran.push(0); aran.get()<aran.get3().length; aran.push(aran.pop()+1)) {
   //       #ID = aran.get3()[aran.get()];
   //       STMT
@@ -11821,9 +11836,9 @@ module.exports = function (traps) {
   // }
   stmts.DeclarationForIn = function (node) { forin("DeclarationForIn", node) }
 
-  // for (ID in EXPR2) STMT >>> {
-  //   aran.push3(aran.traps.enumerate(EXPR2));
+  // for (ID in EXPR2) STMT >>> { 
   //   try {
+  //     aran.push3(aran.traps.enumerate(EXPR2));
   //     for (aran.push(0); aran.get()<aran.get3().length; aran.push(aran.pop()+1)) {
   //       #ID = aran.get3()[aran.get()];
   //       STMT
@@ -11836,10 +11851,10 @@ module.exports = function (traps) {
   stmts.IdentifierForIn = function (node) { forin("IdentifierForIn", node) }
 
   // for (EXPR1[EXPR2] in EXPR3) STMT >>> {
-  //   aran.push1(EXPR1);
-  //   aran.push2(EXPR2);
-  //   aran.push3(aran.traps.enumerate(EXPR3));
   //   try {
+  //     aran.push1(EXPR1);
+  //     aran.push2(EXPR2);
+  //     aran.push3(aran.traps.enumerate(EXPR3));
   //     for (aran.push(0); aran.get()<aran.get3().length; aran.push(aran.pop()+1)) {
   //       aran.set(aran.get1(), aran.get2(), aran.get3()[aran.get()]);
   //       STMT
@@ -12190,7 +12205,7 @@ exports.log = function (mess) {
     try { mess = mess+"\n    "+JSON.stringify(arguments[i]) }
     catch (e) { mess = mess+"\n    "+arguments[i] }
   }
-  console.log(mess)
+  console.log(mess+"\n\n")
 }
 
 exports.extract = function (o1) {
