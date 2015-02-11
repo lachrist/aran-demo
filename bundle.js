@@ -1,6 +1,6 @@
 window.masters = {};
-window.masters.Empty = "";
 window.masters.Logger = "var sandbox = window;\n\nfunction log (msg) { console.log(msg) }\n\nvar hooks = new Proxy({}, {\n  get: function (_, type) {\n    return function () {\n      var msg = 'hooks.'+type;\n      for (var i=0; i<arguments.length; i++) { msg = msg+' '+arguments[i] }\n      log(msg)\n    }\n  }\n});\n\nfunction logtrap (name) {\n  var msg = 'traps.'+name\n  for (var i=1; i<arguments.length; i++) { msg = msg+' '+arguments[i] }\n  log(msg)\n}\n\nvar traps = {\n  primitive: function (x) { logtrap('primitive', x); return x; },\n  object: function (x) { logtrap('object', x); return x; },\n  array: function (x) { logtrap('array', x); return x; },\n  arguments: function (x) { logtrap('arguments', x); return x; },\n  function: function (x) { logtrap('function', x); return x; },\n  regexp: function (x) { logtrap('regexp', x); return x; },\n  booleanize: function (x, u) { logtrap('booleanize', x, u); return x; },\n  stringify: function (x) { logtrap('stringify', x); return x; },\n  throw: function (x) { logtrap('throw', x); return x; },\n  catch: function (x) { logtrap('catch', x); return x; },\n  unary: function (op, x) { logtrap('unary', op, x); return eval(op+' x'); },\n  binary: function (op, x1, x2) { logtrap('binary', op, x1, x2); return eval('x1 '+op+' x2'); },\n  apply: function (f, o, xs) { logtrap('apply', f, o, xs); return f.apply(o, xs); },\n  new: function (f, xs) {\n    logtrap('new', f, xs);\n    var o = Object.create(f.prototype);\n    var x = f.apply(o, xs);\n    if (typeof x === 'object' && x !== null) { return x }\n    return o;\n  },\n  get: function (o, p) { logtrap('get', o, p); return o[p]; },\n  set: function (o, p, v) { logtrap('set', o, p, v); return o[p]=v; },\n  delete: function (o, p) { logtrap('delete', o, p); return delete o[p]; },\n  enumerate: function (o) {\n    logtrap('enumerate', o);\n    var ps = [];\n    for (p in o) { ps.push(p) }\n    return ps;\n  },\n  erase: function (r, p) { logtrap('erase', r, p); return r; },\n  exist: function (o, p) { logtrap('exist', o, p); return p in o; }\n};\n";
+window.masters.Empty = "";
 (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
 
 window.Aran = require('Aran')
@@ -11302,6 +11302,7 @@ var Esvisit = require("esvisit")
 var Esvalid = require("esvalid")
 var Escodegen = require("escodegen")
 
+var Util = require("../util.js")
 var Error = require("../error.js")
 
 var Hoist = require("../stage/hoist.js")
@@ -11324,17 +11325,14 @@ module.exports = function (aran) {
     var ast = Esprima.parse(code)
     compile.prgm(ast)
     push(ast)
-    console.log(JSON.stringify(ast))
     var errors = Esvalid.errors(ast)
-    if (errors.length > 0) { Error.internal("Compilation error", errors.map(function (e) { return e.message }), errors) }
-    code =  Escodegen.generate(ast)
-    console.log(code)
-    return code
+    if (errors.length > 0) { Util.log("Compilation warning", errors.map(function (e) { return e.message }), errors) }
+    return Escodegen.generate(ast)
   }
 
 }
 
-},{"../error.js":2,"../stage/hoist.js":34,"../stage/hook.js":35,"../stage/reduce.js":36,"../stage/sandbox.js":37,"../stage/stack.js":38,"../stage/switch.js":39,"../stage/trap.js":40,"escodegen":4,"esprima":21,"esvalid":22,"esvisit":29}],32:[function(require,module,exports){
+},{"../error.js":2,"../stage/hoist.js":34,"../stage/hook.js":35,"../stage/reduce.js":36,"../stage/sandbox.js":37,"../stage/stack.js":38,"../stage/switch.js":39,"../stage/trap.js":40,"../util.js":44,"escodegen":4,"esprima":21,"esvalid":22,"esvisit":29}],32:[function(require,module,exports){
 
 var Error = require("../error.js")
 
@@ -11426,19 +11424,17 @@ var Ptah = require("../syntax/ptah.js")
 
 module.exports = function (mark, next) {
 
-  var push, hoist, pop
+  var push, hoist
   (function () {
     var bodies = []
     var buffers = []
+    function pop () { Array.prototype.unshift.apply(bodies.pop(), buffers.pop()) }
     push = function (body) {
       mark(pop)
       bodies.push(body)
       buffers.push([])
     }
     hoist = function (stmt) { buffers[buffers.length-1].push(stmt) }
-    pop = function () {
-      Array.prototype.unshift.apply(bodies.pop(), buffers.pop())
-    }
   } ())
 
   function prgm (prgm) {
@@ -11451,17 +11447,14 @@ module.exports = function (mark, next) {
     var copy = Util.extract(stmt)
     copy.type = "FunctionExpression"
     stmt.type = "EmptyStatement"
-    var decl = Ptah.declaration(copy.id.name, copy)
-    hoist(decl)
+    hoist(next.stmt("Declaration", Ptah.declaration(copy.id.name, copy)))
     push(copy.body.body)
-    next.stmt("Empty", stmt)
-    next.stmt("Declaration", decl)
-    next.expr("Function", copy)
+    return (next.expr("Function", copy), next.stmt("Empty", stmt))
   }
 
   function expr (type, expr) {
     if (type === "Function") { push(expr.body.body) }
-    next.expr(type, expr)
+    return next.expr(type, expr)
   }
 
   return {prgm:prgm, stmt:stmt, expr:expr}
@@ -11484,25 +11477,27 @@ module.exports = function (hooks, mark, next) {
   if (!hooks) { return {prgm:next.prgm, stmt:next.stmt, expr:next.expr} }
 
   function prgm (prgm) {
-    var hook = Ptah.exprstmt(Shadow("hooks", "Program", [Ptah.literal(prgm.body.length)]))
-    if (hooks.Program) { mark(function () { prgm.body.unshift(hook) }) }
-    next.prgm(prgm)
+    var length = prgm.body.length
+    if (hooks.Program) { mark(function () { prgm.body.unshift(Ptah.exprstmt(Shadow("hooks", "Program", [Ptah.literal(length)]))) }) }
+    return next.prgm(prgm)
   }
 
   function stmt (type, stmt) {
     if (!hooks[type]) { return next.stmt(type, stmt) }
-    var copy = Util.extract(stmt)
+    var infos = Esvisit.ExtractStatementInformation(type, stmt)
+    var copy = next.stmt(type, Util.extract(stmt))
     stmt.type = "BlockStatement"
-    stmt.body = [Ptah.exprstmt(Shadow("hooks", type, Esvisit.ExtractStatementInformation(type, copy).map(Ptah.nodify))), copy]
-    next.stmt(type, copy)
+    stmt.body = [Ptah.exprstmt(Shadow("hooks", type, infos.map(Ptah.nodify))), copy]
+    return stmt
   }
 
   function expr (type, expr) {
     if (!hooks[type]) { return next.expr(type, expr) }
-    var copy = Util.extract(expr)
+    var infos = Esvisit.ExtractExpressionInformation(type, expr)
+    var copy = next.expr(type, Util.extract(expr))
     expr.type = "SequenceExpression"
-    expr.expressions = [Shadow("hooks", type, Esvisit.ExtractExpressionInformation(type, copy).map(Ptah.nodify)), copy]
-    next.expr(type, copy)
+    expr.expressions = [Shadow("hooks", type, infos.map(Ptah.nodify)), copy]
+    return expr
   }
 
   return {prgm:prgm, stmt:stmt, expr:expr}
@@ -11526,67 +11521,61 @@ function popm (member) { return Ptah.member(Nasus.pop1(), member.computed?Nasus.
 module.exports = function (next) {
 
   function expr (type, expr) {
-    if (expr.operator) { var op = expr.operator[0] }
-    // LogicalExpression //
-    if (type === "Logical") {
-      expr.type = "ConditionalExpression"
-      expr.test = Nasus.push(expr.left)
-      var seq = Ptah.sequence([Nasus.pop(), expr.right])
-      if (expr.operator === "||") { (expr.consequent = Nasus.pop(), expr.alternate = seq) }
-      else if (expr.operator === "&&") { (expr.consequent = seq, expr.alternate = Nasus.pop()) }
-      else { Error("Invalid logical operator", expr) }
-    }
-    // IdentifierAssignment //
-    if (type === "IdentifierAssignment" && expr.operator !== "=") {
-      expr.operator = "="
-      expr.right = Ptah.binary(op, Ptah.identifier(expr.left.name), expr.right)
-      next.expr("Identifier", expr.right.left)
-      next.expr("Binary", expr.right)
-    }
-    // MemberAssignment //
-    if (type === "MemberAssignment" && expr.operator !== "=") {
-      expr.operator = "="
-      expr.right = Ptah.binary(op, popm(expr.left), expr.right)
-      expr.left = pushm(expr.left)
-      next.expr("Member", expr.right.left)
-      next.expr("Binary", expr.right)
-    }
-    // IdentifierUpdate //
-    if (type === "IdentifierUpdate") {
-      var type = "IdentifierAssignment"
-      expr.type = "AssignmentExpression"
-      expr.operator = "="
-      expr.left = expr.argument
-      var identifier = Ptah.identifier(expr.left.name)
-      expr.right = Ptah.binary(op, (expr.prefix?Util.identity:Nasus.push)(identifier), Ptah.literal(1))
-      next.expr("Literal", expr.right.right)
-      next.expr("Identifier", identifier)
-      next.expr("Binary", expr.right)
-      if (!expr.prefix) {
-        var copy = Util.extract(expr)
-        Util.inject(Ptah.sequence([copy, Nasus.pop()]), expr)
-        expr = copy
-      }
-    }
-    // MemberUpdate //
-    if (type === "MemberUpdate") {
-      var type = "MemberAssignment"
-      expr.type = "AssignmentExpression"
-      expr.operator = "="
-      expr.left = pushm(expr.argument)
-      var member = popm(expr.argument)
-      expr.right = Ptah.binary(op, (expr.prefix?Util.identity:Nasus.push)(member), Ptah.literal(1))
-      next.expr("Literal", expr.right.right)
-      next.expr("Member", member)
-      next.expr("Binary", expr.right)
-      if (!expr.prefix) {
-        var copy = Util.extract(expr)
-        Util.inject(Ptah.sequence([copy, Nasus.pop()]), expr)
-        expr = copy
-      }
-    }
-    // Remaing //
-    next.expr(type, expr)
+    if (exprs[type]) { return exprs[type](expr) }
+    return next.expr(type, expr)
+  }
+
+  var exprs = {}
+
+  exprs.Logical = function (expr) {
+    expr.type = "ConditionalExpression"
+    expr.test = Nasus.push(expr.left)
+    var seq = Ptah.sequence([Nasus.pop(), expr.right])
+    if (expr.operator === "||") { (expr.consequent = Nasus.pop(), expr.alternate = seq) }
+    else if (expr.operator === "&&") { (expr.consequent = seq, expr.alternate = Nasus.pop()) }
+    else { Error("Invalid logical operator", expr) }
+    return next.expr("Conditional", expr)
+  }
+
+  exprs.IdentifierAssignment = function (expr) {
+    var op = expr.operator[0]
+    expr.operator = "="
+    expr.right = next.expr("Binary", Ptah.binary(op, next.expr("Identifier", Ptah.identifier(expr.left.name)), expr.right))
+    return next.expr("IdentifierAssignment", expr)
+  }
+
+  exprs.MemberAssignment = function (expr) {
+    var op = expr.operator[0]
+    expr.operator = "="
+    expr.right = next.expr("Binary", Ptah.binary(op, next.expr("Member", popm(expr.left)), expr.right))
+    expr.left = pushm(expr.left)
+    return next.expr("MemberAssignment", expr)
+  }
+
+  exprs.IdentifierUpdate = function (expr) {
+    var op = expr.operator[0]
+    var prefix = expr.prefix
+    expr.type = "AssignmentExpression"
+    expr.operator = "="
+    expr.left = expr.argument
+    var get = (prefix?Util.identity:Nasus.push)(next.expr("Identifier", Ptah.identifier(expr.left.name)))
+    expr.right = next.expr("Binary", Ptah.binary(op, get, next.expr("Literal", Ptah.literal(1))))
+    next.expr("IdentifierAssignment", expr)
+    if (!prefix) { Util.inject(Ptah.sequence([Util.extract(expr), Nasus.pop()]), expr) }
+    return expr
+  }
+
+  exprs.MemberUpdate = function (expr) {
+    var op = expr.operator[0]
+    var prefix = expr.prefix
+    expr.type = "AssignmentExpression"
+    expr.operator = "="
+    expr.left = pushm(expr.argument)
+    var get = (prefix?Util.identity:Nasus.push)(next.expr("Member", popm(expr.argument)))
+    expr.right = next.expr("Binary", Ptah.binary(op, get, next.expr("Literal", Ptah.literal(1))))
+    next.expr("MemberAssignment", expr)
+    if (!prefix) { Util.inject(Ptah.sequence([Util.extract(expr), Nasus.pop()]), expr) }
+    return expr
   }
 
   return {prgm:next.prgm, stmt:next.stmt, expr:expr}
@@ -11607,23 +11596,23 @@ function descape (decl) { escape(decl.id) }
 
 module.exports = function (sandbox, next) {
 
-  if (!sandbox) { return {prgm:nexr.prgm, stmt:next.stmt, expr:next.expr} }
+  if (!sandbox) { return {prgm:next.prgm, stmt:next.stmt, expr:next.expr} }
 
   function stmt (type, stmt) {
     if (stmts[type]) { stmts[type](stmt) }
-    next.stmt(type, stmt)
+    return next.stmt(type, stmt)
   }
 
   function expr (type, expr) {
     if (type === "This") {
       expr.type = "ConditionalExpression"
-      expr.test = Ptah.binary("===", Ptah.this(), Shadow("global"))
-      expr.consequent = Shadow("sandbox")
-      expr.alternate = Ptah.this()
-      return
+      expr.test = Ptah.binary("===", Nasus.push(next.expr("This", Ptah.this())), Shadow("global"))
+      expr.consequent = Ptah.sequence(Nasus.pop(), Shadow("sandbox"))
+      expr.alternate = Nasus.pop()
+      return expr
     }
     if (exprs[type]) { exprs[type](expr) }
-    next.expr(type, expr)
+    return next.expr(type, expr)
   }
 
   var stmts = {
@@ -11671,7 +11660,7 @@ module.exports = function (next) {
       if (!stmt.finalizer) { stmt.finalizer = Ptah.block([]) }
       stmt.finalizer.body.unshift(Ptah.exprstmt(Nasus.unmark()))
     }
-    next.stmt(type, stmt)
+    return next.stmt(type, stmt)
   }
 
   return {prgm:next.prgm, stmt:stmt, expr:next.expr}
@@ -11686,6 +11675,8 @@ module.exports = function (next) {
  * Empty BreakStatements jumps at the end of the conditionals.
  */
 
+ var Util = require("../util.js")
+
 var Ptah = require("../syntax/ptah.js")
 var Nasus = require("../syntax/nasus.js")
 
@@ -11694,44 +11685,40 @@ var maskers = ["While", "DoWhile", "DeclarationFor", "For", "DeclarationForIn", 
 
 module.exports = function (mark, next) {
 
-  var mask, push, get, pop
+  var mask, push, get
   (function () {
     var counter = 0
     var labels = [0]
-    mask = function () { labeld.push(0) }
-    incr = function () { labels.push(++counter) } 
-    pop = function () { labels.pop() }
+    function pop () { labels.pop() }
+    mask = function () { (labels.push(0), mark(pop)) }
+    incr = function () { (labels.push(++counter), mark(pop)) } 
     get = function () { return labels[labels.length-1] }
   } ())
   
   function stmt (type, stmt) {
-     if (type === "Switch") {
+    if (type === "Break") {
+      //yolo
+    }
+    if (type === "Switch") {
       incr()
       var stmts = [Ptah.exprstmt(Nasus.push(stmt.discriminant))]
-      stmt.type = "LabeledStatement"
-      stmt.label = Ptah.identifier("switch"+get())
-      stmt.body = Ptah.try(stmts, null, null, [Ptah.exprstmt(Nasus.pop())])
       stmt.cases.forEach(function (c) {
         if (!c.test) { for (var i=0; i<c.consequent.length; i++) { stmts.push(c.consequent[i]) } }
-        else {
-          var cond = Ptah.if(Ptah.binary("===", Nasus.get(), c.test), Ptah.block(c.consequent))
-          stmts.push(cond)
-          next.stmt("If", cond)
-          next.stmt("Binary", cond.test)
-        }
+        else { stmts.push(next.stmt("If", Ptah.if(next.stmt("Binary", Ptah.binary("===", Nasus.get(), c.test)), Ptah.block(c.consequent)))) }
       })
-      return
+      Util.inject(Ptah.label("switch"+get(), Ptah.try(stmts, null, null, [Ptah.exprstmt(Nasus.pop())])), stmt)
+      return stmt
     }
     if (stmt.label) { escape(stmt.label) }
     else if (type === "Break" && get()) { stmt.label = Ptah.identifier("switch"+get()) }
-    else if (maskers.indexOf(type) !== -1) { (mark(pop), mask()) }
-    next.stmt(type, stmt)
+    else if (maskers.indexOf(type) !== -1) { mask() }
+    return next.stmt(type, stmt)
   }
 
   return {prgm:next.prgm, stmt:stmt, expr:next.expr}
 
 }
-},{"../syntax/nasus.js":41,"../syntax/ptah.js":42}],40:[function(require,module,exports){
+},{"../syntax/nasus.js":41,"../syntax/ptah.js":42,"../util.js":44}],40:[function(require,module,exports){
 
 /*
  * Intercept the evaluation of some expressions/statements.
@@ -11749,15 +11736,19 @@ var Shadow = require("../syntax/shadow.js")
 
 module.exports = function (traps) {
 
-  if (!traps) { return {prgm:Util.nil, stmt:Util.nil, expr:Util.nil} }
+  if (!traps) { return { prgm:Util.identity, stmt:Util.second, expr:Util.second } }
 
-  function stmt (type, stmt) { if (stmts[type]) { stmts[type](stmt) } }
+  function stmt (type, stmt) {
+    if (stmts[type]) { stmts[type](stmt) }
+    return stmt
+  }
 
   function expr (type, expr) {
     if (exprs[type]) {
       var res = exprs[type](expr)
       if (res) { Util.inject(res, expr) }
     }
+    return expr
   }
 
   /////////////
@@ -11931,7 +11922,7 @@ module.exports = function (traps) {
   // Return //
   ////////////
 
-  return {prgm:Util.nil, stmt:stmt, expr:expr}
+  return {prgm:Util.identity, stmt:stmt, expr:expr}
 
 }
 
@@ -12194,6 +12185,14 @@ exports.prepend = function (xs, ys) {
   for (var i=ys.length-1; i>=0; i--) { xs.unshift(ys[i]) }
 }
 
+exports.log = function (mess) {
+  for (var i=1; i<arguments.length; i++) {
+    try { mess = mess+"\n    "+JSON.stringify(arguments[i]) }
+    catch (e) { mess = mess+"\n    "+arguments[i] }
+  }
+  console.log(mess)
+}
+
 exports.extract = function (o1) {
   var o2 = {}
   for (var k in o1) {
@@ -12211,6 +12210,8 @@ exports.inject = function (o1, o2) {
 }
 
 exports.identity = function (x) { return x }
+
+exports.second = function (x, y) { return y }
 
 exports.nil = function () {}
 

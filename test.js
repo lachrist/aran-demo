@@ -98,16 +98,8 @@ var o = {a:1}
 o.a += 3
 assert(o.a === 4)
 
-function f () {
-  
-  a: {
-    console.log("yolo")
-  }
-
-}
-
-var check = 0
 // Switch
+var check = 0
 switch (4) {
   case 1: assert(false); break
   default: check++;
@@ -115,4 +107,4 @@ switch (4) {
   case 4: assert(false); break
 }
 assert(check===2)
-// TODO Assignments operators, switch, some labels...
+
